@@ -4,9 +4,13 @@
 
 | 파일 | 설명 |
 |---|---|
-| [`shopping-list.html`](shopping-list.html) | 쇼핑 리스트 |
+| [`index.html`](index.html) | 랜딩 페이지 (Pages 루트 진입점) |
 | [`sourcing.html`](sourcing.html) | 🇯🇵 일본 사입 판정기 — 바코드 스캔, 국내 판매 확인, 관세·쿠팡 수수료 반영 마진 계산 |
-| [`docs/일본사입-국내판매-실무가이드.md`](docs/일본사입-국내판매-실무가이드.md) | 인증 요건, 관세 계산, 쿠팡 채널별 수수료 상세 가이드 |
+| [`guide.html`](guide.html) | 📄 실무 가이드 (폰에서 읽는 용도, Pages가 직접 서빙) |
+| [`docs/일본사입-국내판매-실무가이드.md`](docs/일본사입-국내판매-실무가이드.md) | 같은 내용의 마크다운 원본 (GitHub에서 읽는 용도) |
+| [`shopping-list.html`](shopping-list.html) | 쇼핑 리스트 |
+
+> 페이지 간 링크는 전부 **상대 경로**입니다. 어느 브랜치에서 Pages를 서빙하든, 머지 후에도 깨지지 않습니다.
 
 ## 일본 사입 판정기 사용법
 
