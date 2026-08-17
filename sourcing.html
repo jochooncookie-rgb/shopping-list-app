@@ -265,6 +265,36 @@
     }
     .sect-label:first-child { margin-top: 0; }
 
+    .note-inline {
+      font-size: 0.78rem;
+      line-height: 1.65;
+      color: #434190;
+      background: #f7f8ff;
+      border: 1px solid #d6d9f5;
+      border-radius: 9px;
+      padding: 10px 12px;
+      margin-top: 4px;
+    }
+
+    .gross-only { display: none; }
+    body.is-gross .gross-only { display: block; }
+    body.is-gross .grid2.gross-only { display: grid; }
+
+    .kpi {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .kpi div {
+      background: #f7fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 11px 12px;
+    }
+    .kpi .k { font-size: 0.72rem; color: #a0aec0; font-weight: 700; margin-bottom: 3px; }
+    .kpi .v { font-size: 1.05rem; font-weight: 700; color: #2d3748; font-variant-numeric: tabular-nums; }
+
     /* ---- 저장 목록 ---- */
     .saved-item {
       display: flex;
@@ -422,8 +452,8 @@
     <div class="field">
       <label for="channel">판매 채널</label>
       <select id="channel">
-        <option value="mp">마켓플레이스 (판매자배송)</option>
         <option value="rg">로켓그로스 (쿠팡 물류)</option>
+        <option value="mp">마켓플레이스 (판매자배송)</option>
       </select>
     </div>
 
@@ -440,22 +470,50 @@
 
     <div class="grid2">
       <div class="field">
-        <label id="logiLabel" for="logi">개당 택배비 (₩)</label>
-        <input type="number" id="logi" value="3000" min="0" step="100" inputmode="numeric">
+        <label id="logiLabel" for="logi">개당 택배비 (₩, VAT 포함)</label>
+        <input type="number" id="logi" value="2500" min="0" step="100" inputmode="numeric">
       </div>
       <div class="field">
-        <label for="ad">광고비 (판매가 %)</label>
-        <input type="number" id="ad" value="15" min="0" max="60" step="1" inputmode="decimal">
+        <label for="monthly">월 판매량 (개)</label>
+        <input type="number" id="monthly" value="100" min="0" step="10" inputmode="numeric">
       </div>
+    </div>
+
+    <div class="grid2 gross-only">
+      <div class="field">
+        <label for="storage">보관료 (개당 월 ₩)</label>
+        <input type="number" id="storage" value="150" min="0" step="10" inputmode="numeric">
+      </div>
+      <div class="field">
+        <label for="retRate">반품률 (%)</label>
+        <input type="number" id="retRate" value="5" min="0" max="100" step="0.5" inputmode="decimal">
+      </div>
+    </div>
+
+    <div class="field gross-only">
+      <label for="retCost">반품 1건당 비용 (₩)</label>
+      <input type="number" id="retCost" value="3000" min="0" step="100" inputmode="numeric">
+    </div>
+
+    <div class="field">
+      <label for="credit">기타 공제 가능 세액 (개당 ₩)</label>
+      <input type="number" id="credit" value="0" min="0" step="10" inputmode="numeric">
+    </div>
+
+    <div class="note-inline" id="adNote">
+      광고비는 개당 수익에서 빼지 않습니다. 대신 아래 <b>손익분기 ROAS</b>로 판단하세요 —
+      실제 ROAS가 그 값보다 낮으면 광고할수록 손해입니다.
     </div>
   </div>
 
   <!-- ========== 결과 ========== -->
   <div class="card">
     <h2>📊 판정 결과</h2>
-    <p class="hint">모든 금액은 부가세를 제외한 <b>공급가액 기준</b>입니다. 수입 부가세와 매출 부가세는 사업자라면 상계되므로 마진에 영향을 주지 않습니다.</p>
+    <p class="hint">판매가가 VAT 포함이므로 <b>빼는 원가도 전부 VAT 포함</b>으로 잡고, 실제로 납부하는 부가세(매출세액 − 매입세액 − 공제세액)를 한 줄로 뺍니다. VAT 뺀 금액으로 계산하면 수익이 10%가량 과대계상됩니다.</p>
 
     <div class="verdict" id="verdict"></div>
+
+    <div class="kpi" id="kpi"></div>
 
     <div class="sect-label">수입 원가</div>
     <table id="costTable"></table>
@@ -721,38 +779,74 @@ function stopScan() {
 }
 
 // ---------------------------------------------------------------- 계산
-function calc() {
-  const qty    = Math.max(1, +$('qty').value || 1);
-  const fx     = (+$('fx').value || 0) / 100;      // 1엔당 원
-  const cif    = (+$('unitJpy').value || 0) * qty * fx + (+$('ship').value || 0);
-  const share  = Math.min(100, Math.max(1, +$('share').value || 100)) / 100;
+// 모든 원가는 "부가세 포함" 기준으로 다룬다.
+// 판매가가 VAT 포함이므로, 빼는 항목도 VAT 포함이어야 실제 현금흐름과 일치한다.
+// 그 위에서 실납부 부가세(매출세액 − 매입세액 − 공제세액)를 한 줄로 뺀다.
+function calc(priceOverride) {
+  const qty   = Math.max(1, +$('qty').value || 1);
+  const fx    = (+$('fx').value || 0) / 100;                 // 1엔당 원
+  const share = Math.min(100, Math.max(1, +$('share').value || 100)) / 100;
 
+  // ── 수입 원가 ──
+  const cif     = (+$('unitJpy').value || 0) * qty * fx + (+$('ship').value || 0);
   const dutyAmt = cif * (+$('duty').value || 0) / 100;
+  const broker  = Math.max(cif * 0.002, 30000) * share;      // 통관수수료 (공급가액)
+  const miscAmt = (+$('misc').value || 0) * share;           // 창고·D/O·국내운송 (공급가액)
 
-  // 관세사 통관수수료: 과세가격의 0.2%, 최저 30,000원 (공급가액 기준)
-  const broker  = Math.max(cif * 0.002, 30000) * share;
-  const miscAmt = (+$('misc').value || 0) * share;
+  // 수입 부가세 = (과세가격 + 관세) × 10%
+  const importVat = (cif + dutyAmt) * 0.1;
+  const domVat    = (broker + miscAmt) * 0.1;                // 국내 매입분 부가세
 
-  const totalCost = cif + dutyAmt + broker + miscAmt;
-  const unitCost  = totalCost / qty;
+  const costIncVat = cif + dutyAmt + importVat + (broker + miscAmt) * 1.1;
+  const unitCost   = costIncVat / qty;                       // 개당 수입원가 (VAT 포함)
+  const unitInVat  = (importVat + domVat) / qty;             // 개당 매입세액 (수입·통관분)
 
-  // 판매측 — 전부 공급가액(VAT 제외) 기준
-  const priceInc = +$('price').value || 0;
-  const netRev   = priceInc / 1.1;
-  const feeAmt   = priceInc * (+$('fee').value || 0) / 100;   // 쿠팡 수수료는 결제금액 기준, VAT 별도
-  const logiAmt  = +$('logi').value || 0;
-  const adAmt    = priceInc * (+$('ad').value || 0) / 100;
+  // ── 판매 ──
+  const price   = priceOverride !== undefined ? priceOverride : (+$('price').value || 0);
+  const feeRate = (+$('fee').value || 0) / 100;
+  const feeAmt  = price * feeRate * 1.1;                     // 판매수수료 (VAT 포함)
 
-  const profit = netRev - unitCost - feeAmt - logiAmt - adAmt;
-  const rate   = netRev > 0 ? profit / netRev * 100 : 0;
+  const isGross  = $('channel').value === 'rg';
+  const shipAmt  = +$('logi').value || 0;                    // 입출고·배송 (VAT 포함)
+  const storage  = isGross ? (+$('storage').value || 0) : 0;
+  const retUnit  = isGross
+    ? (+$('retRate').value || 0) / 100 * (+$('retCost').value || 0)
+    : 0;
+  const logiAmt  = shipAmt + storage + retUnit;              // 물류비 합계 (VAT 포함)
 
-  // 손익분기 판매가: netRev(=P/1.1) - unitCost - P*(fee+ad)/100 - logi = 0
-  const k = (+$('fee').value || 0) / 100 + (+$('ad').value || 0) / 100;
-  const denom = 1 / 1.1 - k;
-  const bep = denom > 0 ? (unitCost + logiAmt) / denom : null;
+  // ── 부가세 ──
+  const outVat  = price / 11;                                // 매출 부가세
+  const inVat   = unitInVat + price * feeRate * 0.1 + logiAmt / 11;
+  const credit  = +$('credit').value || 0;
+  const vatDue  = outVat - inVat - credit;                   // 실납부 부가세 (음수면 환급)
 
-  return { qty, cif, dutyAmt, broker, miscAmt, totalCost, unitCost,
-           priceInc, netRev, feeAmt, logiAmt, adAmt, profit, rate, bep };
+  // ── 결과 ──
+  const profit    = price - unitCost - feeAmt - logiAmt - vatDue;
+  const rate      = price > 0 ? profit / price * 100 : 0;    // 최종 마진율
+  const costRate  = price > 0 ? unitCost / price * 100 : 0;  // 원가율
+
+  const monthlyQty = +$('monthly').value || 0;
+  const monthRev   = price * monthlyQty;
+  const monthMar   = profit * monthlyQty;
+
+  // 손익분기 ROAS: 광고비 1원당 최소 매출. 판매가 ÷ 개당 수익
+  const roas = profit > 0 ? price / profit : null;
+
+  return { qty, cif, dutyAmt, broker, miscAmt, importVat, domVat, costIncVat,
+           unitCost, price, feeAmt, shipAmt, storage, retUnit, logiAmt,
+           outVat, inVat, credit, vatDue, profit, rate, costRate,
+           monthlyQty, monthRev, monthMar, roas, isGross };
+}
+
+// 개당 수익은 판매가에 대해 선형이므로, 두 점으로 기울기를 구해 손익분기가를 푼다.
+// (부가세가 판매가에 연동돼 있어 손으로 정리하면 틀리기 쉬움)
+function breakEvenPrice() {
+  const p1 = 10000, p2 = 20000;
+  const y1 = calc(p1).profit, y2 = calc(p2).profit;
+  const slope = (y2 - y1) / (p2 - p1);
+  if (!isFinite(slope) || slope <= 0) return null;
+  const bep = p1 - y1 / slope;
+  return bep > 0 ? bep : null;
 }
 
 function render() {
@@ -774,32 +868,46 @@ function render() {
 
   v.className = 'verdict ' + cls;
   v.innerHTML = `<div class="big">${mark}</div>
-    <div class="lbl">개당 순마진 <b>${won(r.profit)}</b> · 마진율 <b>${r.rate.toFixed(1)}%</b></div>
+    <div class="lbl">개당 수익 <b>${won(r.profit)}</b> · 최종 마진율 <b>${r.rate.toFixed(1)}%</b></div>
     <div class="lbl" style="margin-top:8px">${msg}</div>`;
 
-  // 원가 테이블
+  const bep = breakEvenPrice();
+
+  $('kpi').innerHTML = `
+    <div><div class="k">최종 마진율</div><div class="v">${r.rate.toFixed(1)}%</div></div>
+    <div><div class="k">원가율</div><div class="v">${r.costRate.toFixed(1)}%</div></div>
+    <div><div class="k">총 예상 월매출</div><div class="v">${won(r.monthRev)}</div></div>
+    <div><div class="k">총 예상 월마진</div><div class="v">${won(r.monthMar)}</div></div>
+    <div><div class="k">손익분기 ROAS</div><div class="v">${r.roas ? r.roas.toFixed(2) + '배' : '—'}</div></div>
+    <div><div class="k">손익분기 판매가</div><div class="v">${bep ? won(bep) : '—'}</div></div>`;
+
   $('costTable').innerHTML = `
     <tr><td>과세가격 CIF<span class="note">사입액 + 국제운송비</span></td><td>${won(r.cif)}</td></tr>
     <tr><td>관세</td><td>${won(r.dutyAmt)}</td></tr>
+    <tr><td>수입 부가세<span class="note">(CIF + 관세) × 10% · 매입세액</span></td><td>${won(r.importVat)}</td></tr>
     <tr><td>관세사 통관수수료<span class="note">CIF의 0.2%, 최저 3만원 · 건당</span></td><td>${won(r.broker)}</td></tr>
     <tr><td>기타 통관실비<span class="note">창고료·D/O·국내운송</span></td><td>${won(r.miscAmt)}</td></tr>
-    <tr class="sum"><td>총 수입원가 (${r.qty}개)</td><td>${won(r.totalCost)}</td></tr>
-    <tr class="sum"><td>개당 원가</td><td>${won(r.unitCost)}</td></tr>`;
+    <tr><td>위 국내분 부가세</td><td>${won(r.domVat)}</td></tr>
+    <tr class="sum"><td>총 수입원가 (${r.qty}개, VAT 포함)</td><td>${won(r.costIncVat)}</td></tr>
+    <tr class="sum"><td>개당 수입원가</td><td>${won(r.unitCost)}</td></tr>`;
 
-  const bepRow = r.bep
-    ? `<tr class="sum"><td>손익분기 판매가<span class="note">이 아래로 팔면 적자</span></td><td>${won(r.bep)}</td></tr>`
-    : `<tr class="sum"><td>손익분기 판매가</td><td>계산 불가</td></tr>`;
+  const logiRows = r.isGross
+    ? `<tr class="neg"><td>− 입출고·배송비</td><td>−${won(r.shipAmt)}</td></tr>
+       <tr class="neg"><td>− 보관료</td><td>−${won(r.storage)}</td></tr>
+       <tr class="neg"><td>− 반품비 환산<span class="note">반품률 × 건당 비용</span></td><td>−${won(r.retUnit)}</td></tr>`
+    : `<tr class="neg"><td>− 택배비</td><td>−${won(r.logiAmt)}</td></tr>`;
+
+  const vatCls = r.vatDue < 0 ? '' : 'neg';
+  const vatVal = r.vatDue < 0 ? `+${won(-r.vatDue)}` : `−${won(r.vatDue)}`;
 
   $('saleTable').innerHTML = `
-    <tr><td>판매가 (VAT 포함)</td><td>${won(r.priceInc)}</td></tr>
-    <tr><td>매출 공급가액<span class="note">판매가 ÷ 1.1</span></td><td>${won(r.netRev)}</td></tr>
-    <tr class="neg"><td>− 상품 원가</td><td>−${won(r.unitCost)}</td></tr>
-    <tr class="neg"><td>− 쿠팡 판매수수료</td><td>−${won(r.feeAmt)}</td></tr>
-    <tr class="neg"><td>− ${$('channel').value === 'rg' ? '로켓그로스 물류비' : '택배비'}</td><td>−${won(r.logiAmt)}</td></tr>
-    <tr class="neg"><td>− 광고비</td><td>−${won(r.adAmt)}</td></tr>
-    <tr class="sum"><td>개당 순마진</td><td>${won(r.profit)}</td></tr>
-    <tr class="sum"><td>전체 예상 순이익 (${r.qty}개 완판)</td><td>${won(r.profit * r.qty)}</td></tr>
-    ${bepRow}`;
+    <tr><td>판매가 (VAT 포함)</td><td>${won(r.price)}</td></tr>
+    <tr class="neg"><td>− 개당 수입원가<span class="note">VAT 포함</span></td><td>−${won(r.unitCost)}</td></tr>
+    <tr class="neg"><td>− 판매수수료<span class="note">VAT 포함</span></td><td>−${won(r.feeAmt)}</td></tr>
+    ${logiRows}
+    <tr class="${vatCls}"><td>${r.vatDue < 0 ? '+ 부가세 환급' : '− 실납부 부가세'}<span class="note">매출세액 ${won(r.outVat)} − 매입세액 ${won(r.inVat)}${r.credit ? ' − 공제 ' + won(r.credit) : ''}</span></td><td>${vatVal}</td></tr>
+    <tr class="sum"><td>개당 수익</td><td>${won(r.profit)}</td></tr>
+    <tr class="sum"><td>총 예상 월마진 (${r.monthlyQty}개)</td><td>${won(r.monthMar)}</td></tr>`;
 }
 
 // ---------------------------------------------------------------- 카테고리 UI
@@ -834,10 +942,16 @@ function saveCandidate() {
     cat: CATEGORIES[+$('cat').value].name,
     unitJpy: +$('unitJpy').value || 0,
     qty: r.qty,
-    price: r.priceInc,
+    price: r.price,
     unitCost: Math.round(r.unitCost),
     profit: Math.round(r.profit),
     rate: +r.rate.toFixed(1),
+    costRate: +r.costRate.toFixed(1),
+    monthlyQty: r.monthlyQty,
+    monthRev: Math.round(r.monthRev),
+    monthMar: Math.round(r.monthMar),
+    roas: r.roas ? +r.roas.toFixed(2) : null,
+    channel: r.isGross ? '로켓그로스' : '마켓플레이스',
     thumb: photoThumb
   });
 
@@ -893,7 +1007,7 @@ function renderSaved() {
         <div class="si-name">${escapeHtml(s.name)}</div>
         <div class="si-meta">${escapeHtml(s.cat)} · ¥${s.unitJpy} × ${s.qty}개 · 판매 ${s.price.toLocaleString('ko-KR')}원</div>
       </div>
-      <div class="si-margin" style="color:${color}">${s.rate}%</div>
+      <div class="si-margin" style="color:${color}">${s.rate}%<br><span style="font-size:0.68rem;font-weight:600;opacity:.75">${s.monthMar != null ? '월 ' + Math.round(s.monthMar/10000) + '만' : ''}</span></div>
       <button class="si-del" data-i="${i}" title="삭제">✕</button>
     </div>`;
   }).join('');
@@ -906,8 +1020,12 @@ function renderSaved() {
 function exportCsv() {
   if (!saved.length) { alert('저장된 후보가 없습니다.'); return; }
 
-  const head = ['상품명', 'JAN', '카테고리', '사입단가(엔)', '수량', '판매가', '개당원가', '개당순마진', '마진율(%)'];
-  const rows = saved.map(s => [s.name, s.jan, s.cat, s.unitJpy, s.qty, s.price, s.unitCost, s.profit, s.rate]);
+  const head = ['상품명', 'JAN', '카테고리', '채널', '사입단가(엔)', '수량', '판매가',
+                '개당수입원가', '원가율(%)', '개당수익', '최종마진율(%)',
+                '월판매량', '총예상월매출', '총예상월마진', '손익분기ROAS'];
+  const rows = saved.map(s => [s.name, s.jan, s.cat, s.channel ?? '', s.unitJpy, s.qty, s.price,
+                s.unitCost, s.costRate ?? '', s.profit, s.rate,
+                s.monthlyQty ?? '', s.monthRev ?? '', s.monthMar ?? '', s.roas ?? '']);
 
   const csv = '﻿' + [head, ...rows]
     .map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))
@@ -937,17 +1055,26 @@ $('cat').addEventListener('change', applyCategory);
 $('jan').addEventListener('input', () => { renderJanStatus(); renderLinks(); });
 $('pname').addEventListener('input', renderLinks);
 
-$('channel').addEventListener('change', () => {
+function applyChannel() {
   const rg = $('channel').value === 'rg';
-  $('logiLabel').textContent = rg ? '로켓그로스 물류비 (개당 ₩)' : '개당 택배비 (₩)';
-  $('logi').value = rg ? 2500 : 3000;
+  document.body.classList.toggle('is-gross', rg);
+  $('logiLabel').textContent = rg
+    ? '입출고·배송비 (개당 ₩, VAT 포함)'
+    : '개당 택배비 (₩, VAT 포함)';
   render();
+}
+
+$('channel').addEventListener('change', () => {
+  $('logi').value = $('channel').value === 'rg' ? 2500 : 3000;
+  applyChannel();
 });
 
-['unitJpy','qty','fx','duty','ship','misc','share','price','fee','logi','ad']
+['unitJpy','qty','fx','duty','ship','misc','share','price','fee','logi',
+ 'monthly','credit','storage','retRate','retCost']
   .forEach(id => $(id).addEventListener('input', render));
 
 applyCategory();
+applyChannel();
 renderLinks();
 renderSaved();
 </script>
