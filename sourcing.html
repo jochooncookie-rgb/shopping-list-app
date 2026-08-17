@@ -276,6 +276,30 @@
       margin-top: 4px;
     }
 
+    .tag {
+      display: inline-block;
+      font-size: 0.66rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 20px;
+      margin-left: 5px;
+      vertical-align: 1px;
+      letter-spacing: 0.02em;
+    }
+    .tag.auto   { background: #e6fffa; color: #285e61; border: 1px solid #b2f5ea; }
+    .tag.manual { background: #fffaf0; color: #975a16; border: 1px solid #fbd38d; }
+
+    .relink {
+      background: none;
+      border: none;
+      padding: 0;
+      color: #4f46e5;
+      font-weight: 700;
+      font-size: inherit;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
     .gross-only { display: none; }
     body.is-gross .gross-only { display: block; }
     body.is-gross .grid2.gross-only { display: grid; }
@@ -433,10 +457,15 @@
         <input type="number" id="ship" value="150000" min="0" step="1000" inputmode="numeric">
       </div>
       <div class="field">
-        <label for="misc">기타 통관실비 (₩)</label>
+        <label for="misc">
+          기타 통관실비 (₩)
+          <span class="tag" id="miscTag">자동</span>
+        </label>
         <input type="number" id="misc" value="50000" min="0" step="1000" inputmode="numeric">
       </div>
     </div>
+
+    <div class="note-inline" id="miscNote"></div>
 
     <div class="field">
       <label for="share">이 상품의 고정비 분담 비율 (%)</label>
@@ -779,6 +808,43 @@ function stopScan() {
 }
 
 // ---------------------------------------------------------------- 계산
+// ---------------------------------------------------------------- 통관실비 자동 산출
+// 창고료·D/O·하역·국내운송은 "건당 고정비 + 물량 비례분" 구조다.
+// 사입가를 넣으면 CIF에서 추정해 채우고, 실제 청구서가 나오면 직접 덮어쓸 수 있다.
+let miscAuto = true;
+
+function currentCif() {
+  const qty = Math.max(1, +$('qty').value || 1);
+  const fx  = (+$('fx').value || 0) / 100;
+  return (+$('unitJpy').value || 0) * qty * fx + (+$('ship').value || 0);
+}
+
+function estimateMisc(cif) {
+  const est = 40000 + cif * 0.015;                       // 고정 4만 + CIF의 1.5%
+  return Math.round(Math.min(300000, Math.max(40000, est)) / 1000) * 1000;
+}
+
+function syncMisc() {
+  const tag = $('miscTag');
+  const note = $('miscNote');
+
+  if (miscAuto) {
+    const cif = currentCif();
+    $('misc').value = estimateMisc(cif);
+    tag.className = 'tag auto';
+    tag.textContent = '자동';
+    note.innerHTML = `사입가·운송비를 넣으면 <b>고정비 4만원 + CIF의 1.5%</b>로 추정해 자동으로 채웁니다
+      (창고료·D/O·하역·국내운송). 실제 청구서가 나오면 그 칸에 직접 입력하세요 — 자동은 그때 꺼집니다.`;
+  } else {
+    tag.className = 'tag manual';
+    tag.textContent = '직접 입력';
+    note.innerHTML = `직접 입력한 금액을 그대로 씁니다.
+      <button type="button" class="relink" id="miscReset">자동 추정으로 되돌리기</button>`;
+    const btn = $('miscReset');
+    if (btn) btn.addEventListener('click', () => { miscAuto = true; syncMisc(); render(); });
+  }
+}
+
 // 모든 원가는 "부가세 포함" 기준으로 다룬다.
 // 판매가가 VAT 포함이므로, 빼는 항목도 VAT 포함이어야 실제 현금흐름과 일치한다.
 // 그 위에서 실납부 부가세(매출세액 − 매입세액 − 공제세액)를 한 줄로 뺀다.
@@ -1069,12 +1135,23 @@ $('channel').addEventListener('change', () => {
   applyChannel();
 });
 
-['unitJpy','qty','fx','duty','ship','misc','share','price','fee','logi',
- 'monthly','credit','storage','retRate','retCost']
+// 사입 원가가 바뀌면 통관실비를 다시 추정한 뒤 계산한다
+['unitJpy','qty','fx','ship'].forEach(id =>
+  $(id).addEventListener('input', () => { syncMisc(); render(); }));
+
+// 통관실비를 직접 건드리면 자동 추정을 끈다
+$('misc').addEventListener('input', () => {
+  if (miscAuto) { miscAuto = false; syncMisc(); }
+  render();
+});
+
+['duty','share','price','fee','logi','monthly','credit','storage','retRate','retCost']
   .forEach(id => $(id).addEventListener('input', render));
 
 applyCategory();
 applyChannel();
+syncMisc();
+render();
 renderLinks();
 renderSaved();
 </script>
