@@ -429,7 +429,18 @@
     <h2>③ 사입 · 수입 원가</h2>
     <p class="hint">통관 고정비(관세사 수수료·창고료)는 <b>수입 건당</b> 붙습니다. 한 번에 여러 상품을 들여온다면 분담 비율을 낮추세요.</p>
 
-    <div class="grid2">
+    <div class="field">
+      <label for="mode">반입 방식</label>
+      <select id="mode">
+        <option value="cargo">일반 화물 (항공/해운 LCL)</option>
+        <option value="express">특송 (EMS·DHL)</option>
+        <option value="hand">핸드캐리 (직접 들고 입국)</option>
+      </select>
+    </div>
+
+    <div class="note-inline" id="modeNote"></div>
+
+    <div class="grid2" style="margin-top:13px">
       <div class="field">
         <label for="unitJpy">사입 단가 (¥)</label>
         <input type="number" id="unitJpy" value="500" min="0" step="1" inputmode="decimal">
@@ -453,7 +464,7 @@
 
     <div class="grid2">
       <div class="field">
-        <label for="ship">국제운송비 (₩ 총액)</label>
+        <label id="shipLabel" for="ship">국제운송비 (₩ 총액)</label>
         <input type="number" id="ship" value="150000" min="0" step="1000" inputmode="numeric">
       </div>
       <div class="field">
@@ -467,9 +478,20 @@
 
     <div class="note-inline" id="miscNote"></div>
 
-    <div class="field">
-      <label for="share">이 상품의 고정비 분담 비율 (%)</label>
-      <input type="number" id="share" value="100" min="1" max="100" step="5" inputmode="numeric">
+    <div class="grid2">
+      <div class="field">
+        <label for="trip">출장비 (₩ 총액)</label>
+        <input type="number" id="trip" value="0" min="0" step="10000" inputmode="numeric">
+      </div>
+      <div class="field">
+        <label for="share">고정비 분담 비율 (%)</label>
+        <input type="number" id="share" value="100" min="1" max="100" step="5" inputmode="numeric">
+      </div>
+    </div>
+
+    <div class="note-inline">
+      <b>출장비</b>(항공권·숙박)는 <b>과세가격에 넣지 않습니다</b> — 관세 대상이 아닙니다. 다만 실제 원가이므로
+      개당 수입원가에는 반영됩니다. 국제운송이라 <b>부가세 매입세액 공제도 안 됩니다.</b>
     </div>
   </div>
 
@@ -566,7 +588,7 @@
     관세청 콜센터 <b>125</b> · <a href="https://unipass.customs.go.kr" target="_blank" rel="noopener">UNIPASS</a> ·
     <a href="https://www.safetykorea.kr/policy/targetsSafetyCert" target="_blank" rel="noopener">KC 인증 대상 조회</a><br>
     <a href="guide.html">📄 상세 실무 가이드</a> · <a href="./">도구 모음</a><br>
-    <span style="opacity:.7">빌드 <b id="ver">v6 · 2026-08-17</b> — 이 값이 최신과 다르면 캐시입니다. 주소 뒤에 <code>?v=7</code> 을 붙여 새로고침하세요.</span>
+    <span style="opacity:.7">빌드 <b id="ver">v7 · 2026-08-17</b> — 이 값이 최신과 다르면 캐시입니다. 주소 뒤에 <code>?v=8</code> 을 붙여 새로고침하세요.</span>
   </p>
 
 </div>
@@ -820,9 +842,41 @@ function currentCif() {
   return (+$('unitJpy').value || 0) * qty * fx + (+$('ship').value || 0);
 }
 
+// 반입 방식마다 붙는 실비가 다르다.
+//  일반 화물 : 창고료 + D/O + 하역 + 국내운송 전부 발생
+//  특송      : D/O·하역 없음, 창고료 미미 (통관대행이 운임에 포함되기도 함)
+//  핸드캐리  : 판매용은 세관 지정 유치창고에 입고된 뒤 정식 수입신고를 거친다.
+//              운송비는 안 들지만 유치창고 보관료는 붙고, 관세사 통관수수료도 그대로다.
+const MODES = {
+  cargo:   { base: 40000, rate: 0.015, min: 40000, max: 300000, ship: 150000,
+             shipLabel: '국제운송비 (₩ 총액)' },
+  express: { base: 10000, rate: 0.003, min: 10000, max: 60000,  ship: 120000,
+             shipLabel: '특송 운임 (₩ 총액)' },
+  hand:    { base: 20000, rate: 0.002, min: 20000, max: 60000,  ship: 0,
+             shipLabel: '수하물 초과요금 (₩ 총액)' }
+};
+
 function estimateMisc(cif) {
-  const est = 40000 + cif * 0.015;                       // 고정 4만 + CIF의 1.5%
-  return Math.round(Math.min(300000, Math.max(40000, est)) / 1000) * 1000;
+  const m = MODES[$('mode').value] || MODES.cargo;
+  const est = m.base + cif * m.rate;
+  return Math.round(Math.min(m.max, Math.max(m.min, est)) / 1000) * 1000;
+}
+
+const MODE_NOTES = {
+  cargo: `창고료·D/O·하역·국내운송이 모두 붙습니다. 여러 도매상 물건을 <b>한 건으로 묶어</b> 보내면
+          통관수수료가 1회분만 나갑니다.`,
+  express: `D/O·하역이 없고 창고료도 거의 없습니다. 소량이면 일반 화물보다 유리한 경우가 많습니다.`,
+  hand: `<b>핸드캐리는 운송비를 아끼는 것이지 통관을 건너뛰는 게 아닙니다.</b>
+         판매용이면 입국 시 '상업용 물품'으로 신고 → 세관 지정 유치창고 입고 → 관세사 정식 수입신고를
+         거칩니다. <b>800달러 면세는 자가사용 전용이라 적용되지 않고</b>, 유치창고 보관료와 통관수수료는
+         그대로 발생합니다. 이 절차를 건너뛰면 수입신고필증이 안 나와
+         <b>부가세 매입세액 공제를 못 받습니다.</b>`
+};
+
+function applyMode() {
+  const m = MODES[$('mode').value] || MODES.cargo;
+  $('shipLabel').textContent = m.shipLabel;
+  $('modeNote').innerHTML = MODE_NOTES[$('mode').value] || '';
 }
 
 function syncMisc() {
@@ -864,7 +918,10 @@ function calc(priceOverride) {
   const importVat = (cif + dutyAmt) * 0.1;
   const domVat    = (broker + miscAmt) * 0.1;                // 국내 매입분 부가세
 
-  const costIncVat = cif + dutyAmt + importVat + (broker + miscAmt) * 1.1;
+  // 출장비: 과세가격에 넣지 않고(관세 대상 아님), 국제운송이라 매입세액 공제도 없다
+  const tripAmt = (+$('trip').value || 0) * share;
+
+  const costIncVat = cif + dutyAmt + importVat + (broker + miscAmt) * 1.1 + tripAmt;
   const unitCost   = costIncVat / qty;                       // 개당 수입원가 (VAT 포함)
   const unitInVat  = (importVat + domVat) / qty;             // 개당 매입세액 (수입·통관분)
 
@@ -899,7 +956,7 @@ function calc(priceOverride) {
   // 손익분기 ROAS: 광고비 1원당 최소 매출. 판매가 ÷ 개당 수익
   const roas = profit > 0 ? price / profit : null;
 
-  return { qty, cif, dutyAmt, broker, miscAmt, importVat, domVat, costIncVat,
+  return { qty, cif, dutyAmt, broker, miscAmt, tripAmt, importVat, domVat, costIncVat,
            unitCost, price, feeAmt, shipAmt, storage, retUnit, logiAmt,
            outVat, inVat, credit, vatDue, profit, rate, costRate,
            monthlyQty, monthRev, monthMar, roas, isGross };
@@ -955,6 +1012,7 @@ function render() {
     <tr><td>관세사 통관수수료<span class="note">CIF의 0.2%, 최저 3만원 · 건당</span></td><td>${won(r.broker)}</td></tr>
     <tr><td>기타 통관실비<span class="note">창고료·D/O·국내운송</span></td><td>${won(r.miscAmt)}</td></tr>
     <tr><td>위 국내분 부가세</td><td>${won(r.domVat)}</td></tr>
+    ${r.tripAmt ? `<tr><td>출장비 분담<span class="note">과세가격 제외 · 매입세액 공제 없음</span></td><td>${won(r.tripAmt)}</td></tr>` : ''}
     <tr class="sum"><td>총 수입원가 (${r.qty}개, VAT 포함)</td><td>${won(r.costIncVat)}</td></tr>
     <tr class="sum"><td>개당 수입원가</td><td>${won(r.unitCost)}</td></tr>`;
 
@@ -1136,6 +1194,17 @@ $('channel').addEventListener('change', () => {
   applyChannel();
 });
 
+$('mode').addEventListener('change', () => {
+  const m = MODES[$('mode').value] || MODES.cargo;
+  $('ship').value = m.ship;
+  // 반입 방식이 바뀌면 물류 구조 자체가 달라지므로, 직접 입력해둔 실비는 무의미해진다.
+  // 수량·단가 변경과 달리 여기서는 자동 추정으로 되돌린다.
+  miscAuto = true;
+  applyMode();
+  syncMisc();
+  render();
+});
+
 // 사입 원가가 바뀌면 통관실비를 다시 추정한 뒤 계산한다
 ['unitJpy','qty','fx','ship'].forEach(id =>
   $(id).addEventListener('input', () => { syncMisc(); render(); }));
@@ -1146,11 +1215,12 @@ $('misc').addEventListener('input', () => {
   render();
 });
 
-['duty','share','price','fee','logi','monthly','credit','storage','retRate','retCost']
+['duty','share','trip','price','fee','logi','monthly','credit','storage','retRate','retCost']
   .forEach(id => $(id).addEventListener('input', render));
 
 applyCategory();
 applyChannel();
+applyMode();
 syncMisc();
 render();
 renderLinks();
