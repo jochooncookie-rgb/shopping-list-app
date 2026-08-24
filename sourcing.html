@@ -300,6 +300,9 @@
       cursor: pointer;
     }
 
+    .ferry-only { display: none; }
+    body.is-ferry .ferry-only { display: block; }
+
     .gross-only { display: none; }
     body.is-gross .gross-only { display: block; }
     body.is-gross .grid2.gross-only { display: grid; }
@@ -434,11 +437,17 @@
       <select id="mode">
         <option value="cargo">일반 화물 (항공/해운 LCL)</option>
         <option value="express">특송 (EMS·DHL)</option>
-        <option value="hand">핸드캐리 (직접 들고 입국)</option>
+        <option value="hand">핸드캐리 (항공, 직접 들고 입국)</option>
+        <option value="ferry">페리 보따리 (부산–오사카)</option>
       </select>
     </div>
 
     <div class="note-inline" id="modeNote"></div>
+
+    <div class="field ferry-only" style="margin-top:13px">
+      <label for="weight">총 중량 (kg) <span class="tag auto">운송비 자동</span></label>
+      <input type="number" id="weight" value="30" min="0" step="1" inputmode="decimal">
+    </div>
 
     <div class="grid2" style="margin-top:13px">
       <div class="field">
@@ -588,7 +597,7 @@
     관세청 콜센터 <b>125</b> · <a href="https://unipass.customs.go.kr" target="_blank" rel="noopener">UNIPASS</a> ·
     <a href="https://www.safetykorea.kr/policy/targetsSafetyCert" target="_blank" rel="noopener">KC 인증 대상 조회</a><br>
     <a href="guide.html">📄 상세 실무 가이드</a> · <a href="./">도구 모음</a><br>
-    <span style="opacity:.7">빌드 <b id="ver">v8 · 2026-08-17</b> — 이 값이 최신과 다르면 캐시입니다. 주소 뒤에 <code>?v=9</code> 을 붙여 새로고침하세요.</span>
+    <span style="opacity:.7">빌드 <b id="ver">v9 · 2026-08-17</b> — 이 값이 최신과 다르면 캐시입니다. 주소 뒤에 <code>?v=10</code> 을 붙여 새로고침하세요.</span>
   </p>
 
 </div>
@@ -853,8 +862,13 @@ const MODES = {
   express: { base: 10000, rate: 0.003, min: 10000, max: 60000,  ship: 120000,
              shipLabel: '특송 운임 (₩ 총액)' },
   hand:    { base: 20000, rate: 0.002, min: 20000, max: 60000,  ship: 0,
-             shipLabel: '수하물 초과요금 (₩ 총액)' }
+             shipLabel: '수하물 초과요금 (₩ 총액)' },
+  ferry:   { base: 20000, rate: 0.002, min: 20000, max: 60000,  ship: 0,
+             shipLabel: '페리 수하물 요금 (₩ 총액)' }
 };
+
+// 부산–오사카 팬스타 드림호 기준 약 10kg당 1만원 = 1,000원/kg
+const FERRY_PER_KG = 1000;
 
 function estimateMisc(cif) {
   const m = MODES[$('mode').value] || MODES.cargo;
@@ -866,6 +880,15 @@ const MODE_NOTES = {
   cargo: `창고료·D/O·하역·국내운송이 모두 붙습니다. 여러 도매상 물건을 <b>한 건으로 묶어</b> 보내면
           통관수수료가 1회분만 나갑니다.`,
   express: `D/O·하역이 없고 창고료도 거의 없습니다. 소량이면 일반 화물보다 유리한 경우가 많습니다.`,
+  ferry: `부산–오사카 <b>팬스타 드림호</b> 같은 페리 편을 쓰는 방식입니다. 수하물 요금이
+          <b>약 10kg당 1만원</b>으로 항공 대비 크게 저렴해, 중량이 나가는 잡화에 유리합니다.
+          중량만 넣으면 운송비가 자동으로 잡힙니다.
+          <br><br>
+          통관은 핸드캐리와 같습니다. 세관에 <b>인보이스·패킹리스트·사업자등록증</b>을 제출하면
+          <b>'수입 물품 유치증'</b>을 발급받고 물품은 <b>보세창고에 유치</b>됩니다. 즉시 통관이 아니라
+          심사와 세금 납부를 마쳐야 반출됩니다. <b>800달러 면세는 판매용에 적용되지 않고</b>,
+          상업용 수량이면 <b>간이세율(20%)도 배제</b>되어 품목별 관세율이 적용됩니다.`,
+
   hand: `<b>핸드캐리는 운송비를 아끼는 것이지 통관을 건너뛰는 게 아닙니다.</b>
          입국 시 '상업용 물품'으로 신고하면 <b>①유치 후 정식 수입신고</b> 또는 <b>②간이 현장통관</b> 중
          하나로 처리됩니다 — 어느 쪽인지는 금액·수량을 보고 세관이 정합니다. ①이면 유치창고 보관료가
@@ -878,9 +901,17 @@ const MODE_NOTES = {
 };
 
 function applyMode() {
-  const m = MODES[$('mode').value] || MODES.cargo;
+  const mode = $('mode').value;
+  const m = MODES[mode] || MODES.cargo;
   $('shipLabel').textContent = m.shipLabel;
-  $('modeNote').innerHTML = MODE_NOTES[$('mode').value] || '';
+  $('modeNote').innerHTML = MODE_NOTES[mode] || '';
+  document.body.classList.toggle('is-ferry', mode === 'ferry');
+  if (mode === 'ferry') syncFerryShip();
+}
+
+// 페리는 중량으로 운송비가 정해진다
+function syncFerryShip() {
+  $('ship').value = Math.round((+$('weight').value || 0) * FERRY_PER_KG);
 }
 
 function syncMisc() {
@@ -1212,6 +1243,8 @@ $('mode').addEventListener('change', () => {
 // 사입 원가가 바뀌면 통관실비를 다시 추정한 뒤 계산한다
 ['unitJpy','qty','fx','ship'].forEach(id =>
   $(id).addEventListener('input', () => { syncMisc(); render(); }));
+
+$('weight').addEventListener('input', () => { syncFerryShip(); syncMisc(); render(); });
 
 // 통관실비를 직접 건드리면 자동 추정을 끈다
 $('misc').addEventListener('input', () => {
