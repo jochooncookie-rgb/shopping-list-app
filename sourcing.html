@@ -487,7 +487,17 @@
 
     <div class="note-inline" id="miscNote"></div>
 
-    <div class="grid2">
+    <div class="field">
+      <label for="declarer">수입신고 방식</label>
+      <select id="declarer">
+        <option value="broker">관세사 대행</option>
+        <option value="self">자가통관 (화주 직접신고)</option>
+      </select>
+    </div>
+
+    <div class="note-inline" id="declarerNote"></div>
+
+    <div class="grid2" style="margin-top:13px">
       <div class="field">
         <label for="trip">출장비 (₩ 총액)</label>
         <input type="number" id="trip" value="0" min="0" step="10000" inputmode="numeric">
@@ -597,7 +607,7 @@
     관세청 콜센터 <b>125</b> · <a href="https://unipass.customs.go.kr" target="_blank" rel="noopener">UNIPASS</a> ·
     <a href="https://www.safetykorea.kr/policy/targetsSafetyCert" target="_blank" rel="noopener">KC 인증 대상 조회</a><br>
     <a href="guide.html">📄 상세 실무 가이드</a> · <a href="./">도구 모음</a><br>
-    <span style="opacity:.7">빌드 <b id="ver">v10 · 2026-08-17</b> — 이 값이 최신과 다르면 캐시입니다. 주소 뒤에 <code>?v=11</code> 을 붙여 새로고침하세요.</span>
+    <span style="opacity:.7">빌드 <b id="ver">v11 · 2026-08-17</b> — 이 값이 최신과 다르면 캐시입니다. 주소 뒤에 <code>?v=12</code> 을 붙여 새로고침하세요.</span>
   </p>
 
 </div>
@@ -900,6 +910,22 @@ const MODE_NOTES = {
          수입세금계산서가 안 나와 <b>부가세 매입세액 공제를 못 받습니다.</b>`
 };
 
+const DECLARER_NOTES = {
+  broker: `관세법 제242조상 수입신고는 <b>화주 또는 관세사</b> 명의로 할 수 있어 관세사 선임은
+           <b>법적 의무가 아닙니다.</b> 다만 실무에서는 수출입 물량의 약 96%를 관세사가 처리합니다 —
+           HS코드 오분류는 관세 추징과 가산세로 돌아오고, 유치 중이면 보관료가 하루씩 쌓입니다.
+           <b>첫 건은 관세사로 HS코드를 확정하는 편이 안전합니다.</b>`,
+  self:   `통관수수료가 <b>0원</b>으로 계산됩니다. 직접 신고하려면 유니패스에 사업자로 가입해
+           세관에서 <b>신고인부호</b>를 받아야 합니다(사업자등록번호 있는 법인·개인사업자만 가능).
+           <b>HS코드는 본인 책임</b>이며, 잘못 신고하면 관세 추징과 가산세가 붙습니다.
+           동일 품목을 반복 수입해 HS코드가 이미 확정된 경우에 적합합니다.`
+};
+
+function applyDeclarer() {
+  $('declarerNote').innerHTML = DECLARER_NOTES[$('declarer').value] || '';
+  render();
+}
+
 function applyMode() {
   const mode = $('mode').value;
   const m = MODES[mode] || MODES.cargo;
@@ -946,7 +972,10 @@ function calc(priceOverride) {
   // ── 수입 원가 ──
   const cif     = (+$('unitJpy').value || 0) * qty * fx + (+$('ship').value || 0);
   const dutyAmt = cif * (+$('duty').value || 0) / 100;
-  const broker  = Math.max(cif * 0.002, 30000) * share;      // 통관수수료 (공급가액)
+  // 관세법 제242조상 신고는 화주 또는 관세사 명의로 가능하다.
+  // 자가통관(화주 직접신고)이면 관세사 통관수수료가 발생하지 않는다.
+  const isSelf  = $('declarer').value === 'self';
+  const broker  = isSelf ? 0 : Math.max(cif * 0.002, 30000) * share;
   const miscAmt = (+$('misc').value || 0) * share;           // 창고·D/O·국내운송 (공급가액)
 
   // 수입 부가세 = (과세가격 + 관세) × 10%
@@ -991,7 +1020,7 @@ function calc(priceOverride) {
   // 손익분기 ROAS: 광고비 1원당 최소 매출. 판매가 ÷ 개당 수익
   const roas = profit > 0 ? price / profit : null;
 
-  return { qty, cif, dutyAmt, broker, miscAmt, tripAmt, importVat, domVat, costIncVat,
+  return { qty, cif, dutyAmt, broker, miscAmt, tripAmt, isSelf, importVat, domVat, costIncVat,
            unitCost, price, feeAmt, shipAmt, storage, retUnit, logiAmt,
            outVat, inVat, credit, vatDue, profit, rate, costRate,
            monthlyQty, monthRev, monthMar, roas, isGross };
@@ -1044,7 +1073,7 @@ function render() {
     <tr><td>과세가격 CIF<span class="note">사입액 + 국제운송비</span></td><td>${won(r.cif)}</td></tr>
     <tr><td>관세</td><td>${won(r.dutyAmt)}</td></tr>
     <tr><td>수입 부가세<span class="note">(CIF + 관세) × 10% · 매입세액</span></td><td>${won(r.importVat)}</td></tr>
-    <tr><td>관세사 통관수수료<span class="note">CIF의 0.2%, 최저 3만원 · 건당</span></td><td>${won(r.broker)}</td></tr>
+    <tr><td>${r.isSelf ? '통관수수료<span class="note">자가통관 — 관세사 수수료 없음</span>' : '관세사 통관수수료<span class="note">CIF의 0.2%, 최저 3만원 · 건당</span>'}</td><td>${won(r.broker)}</td></tr>
     <tr><td>기타 통관실비<span class="note">창고료·D/O·국내운송</span></td><td>${won(r.miscAmt)}</td></tr>
     <tr><td>위 국내분 부가세</td><td>${won(r.domVat)}</td></tr>
     ${r.tripAmt ? `<tr><td>출장비 분담<span class="note">과세가격 제외 · 매입세액 공제 없음</span></td><td>${won(r.tripAmt)}</td></tr>` : ''}
@@ -1229,6 +1258,8 @@ $('channel').addEventListener('change', () => {
   applyChannel();
 });
 
+$('declarer').addEventListener('change', applyDeclarer);
+
 $('mode').addEventListener('change', () => {
   const m = MODES[$('mode').value] || MODES.cargo;
   $('ship').value = m.ship;
@@ -1258,6 +1289,7 @@ $('misc').addEventListener('input', () => {
 applyCategory();
 applyChannel();
 applyMode();
+applyDeclarer();
 syncMisc();
 render();
 renderLinks();
