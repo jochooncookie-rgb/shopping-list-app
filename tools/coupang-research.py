@@ -172,7 +172,9 @@ def cache_put(keyword: str, limit: int, data):
 
 # ─────────────────────────────────────────────────────────── 조회
 def search(keyword: str, limit: int, access_key: str, secret_key: str):
-    query = urllib.parse.urlencode({"keyword": keyword, "limit": limit})
+    # 공백은 반드시 %20 으로. urlencode 는 '+' 를 쓰는데, 쿠팡이 이를 공백으로
+    # 풀지 않아 검색어가 '일본+캔버스+에코백' 이라는 문자열이 되어 0건이 된다.
+    query = f"keyword={urllib.parse.quote(keyword)}&limit={limit}"
     url = f"{DOMAIN}{SEARCH_PATH}?{query}"
     auth = build_auth("GET", SEARCH_PATH, query, access_key, secret_key)
 
@@ -195,6 +197,16 @@ def search(keyword: str, limit: int, access_key: str, secret_key: str):
         sys.exit(f"[오류] HTTP {e.code} — {hint}\n{body}")
     except urllib.error.URLError as e:
         sys.exit(f"[오류] 접속 실패: {e.reason}")
+
+
+def check_rcode(payload, keyword):
+    """쿠팡은 HTTP 200이어도 본문에 오류 코드를 담아 보낸다."""
+    rcode = str(payload.get("rCode", "0"))
+    rmsg = payload.get("rMessage", "")
+    if rcode not in ("0", "00", ""):
+        print(f"  ⚠️  쿠팡 응답 코드 {rcode}: {rmsg}")
+        return False
+    return True
 
 
 def extract(payload):
@@ -227,7 +239,22 @@ def won(n):
     return f"{int(n):,}원"
 
 
-def report(keyword, rows, from_cache=None):
+def deep_find_products(obj, depth=0):
+    """구조가 예상과 달라도 상품처럼 생긴 리스트를 찾아본다."""
+    if depth > 5:
+        return None
+    if isinstance(obj, list) and obj and isinstance(obj[0], dict):
+        if any(k in obj[0] for k in ("productName", "productId", "productPrice")):
+            return obj
+    if isinstance(obj, dict):
+        for v in obj.values():
+            found = deep_find_products(v, depth + 1)
+            if found:
+                return found
+    return None
+
+
+def report(keyword, rows, from_cache=None, raw=None):
     print()
     print("═" * 62)
     src = f"  (캐시 {from_cache:.1f}시간 전)" if from_cache is not None else ""
@@ -235,8 +262,16 @@ def report(keyword, rows, from_cache=None):
     print("═" * 62)
 
     if not rows:
-        print("  검색 결과 없음 — 국내에 아직 없는 상품일 수 있습니다.")
-        print("  ⚠️  기회일 수도 있지만, 인증 문제로 아무도 못 파는 물건일 확률도 높습니다.")
+        # 응답 본문에 상품처럼 생긴 게 정말 없는지 한 번 더 확인한다
+        salvaged = deep_find_products(raw) if raw else None
+        if salvaged:
+            print(f"  ⚠️  응답에 상품 {len(salvaged)}건이 있는데 이 스크립트가 해석하지 못했습니다.")
+            print("      --debug 로 원본을 저장해 알려주시면 파서를 고치겠습니다.")
+            return None
+        print("  검색 결과 0건.")
+        print("  ├ 검색어가 너무 구체적일 수 있습니다 → 단어를 줄여 다시 조회해보세요")
+        print("  │  예) '일본 캔버스 에코백' → '캔버스 에코백' → '에코백'")
+        print("  └ 넓은 검색어(예: 에코백)도 0건이면 API 응답 문제일 수 있습니다")
         return None
 
     prices = sorted(r["가격"] for r in rows if r["가격"])
@@ -276,6 +311,7 @@ def main():
     p.add_argument("--out", default="coupang-research.csv", help="CSV 저장 경로")
     p.add_argument("--cache-hours", type=int, default=CACHE_HOURS, help="캐시 유효시간 (기본 24)")
     p.add_argument("--no-cache", action="store_true", help="캐시를 무시하고 새로 조회")
+    p.add_argument("--debug", action="store_true", help="API 원본 응답을 raw-응답.json 으로 저장")
     args = p.parse_args()
 
     keywords = list(args.keywords)
@@ -305,9 +341,14 @@ def main():
                 break
             payload = search(kw, args.limit, ak, sk)
             quota_record()
+            if args.debug:
+                f = Path(f"raw-{kw.replace(' ', '_')[:20]}.json")
+                f.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+                print(f"  [debug] 원본 응답 저장: {f}")
+            check_rcode(payload, kw)
             rows = extract(payload)
             cache_put(kw, args.limit, rows)
-            stat = report(kw, rows)
+            stat = report(kw, rows, raw=payload)
             time.sleep(1)          # 연속 호출 완충
 
         for r in rows:
