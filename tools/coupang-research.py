@@ -75,10 +75,31 @@ def load_keys(env_path: Path):
         k, v = line.split("=", 1)
         values[k.strip()] = v.strip().strip('"').strip("'")
 
-    ak = ak or values.get("COUPANG_ACCESS_KEY")
-    sk = sk or values.get("COUPANG_SECRET_KEY")
+    # 키 이름은 사람마다 다르게 쓰므로 흔한 변형을 모두 받아들인다
+    def pick(*names):
+        for n in names:
+            for k, v in values.items():
+                if k.upper().replace("-", "_") == n and v:
+                    return v
+        return None
+
+    ak = ak or pick("COUPANG_ACCESS_KEY", "ACCESS_KEY", "CP_ACCESS_KEY",
+                    "COUPANG_ACCESSKEY", "ACCESSKEY", "PARTNERS_ACCESS_KEY")
+    sk = sk or pick("COUPANG_SECRET_KEY", "SECRET_KEY", "CP_SECRET_KEY",
+                    "COUPANG_SECRETKEY", "SECRETKEY", "PARTNERS_SECRET_KEY")
+
     if not ak or not sk:
-        sys.exit(f"[오류] {env_path} 에 COUPANG_ACCESS_KEY / COUPANG_SECRET_KEY 가 없습니다.")
+        found = ", ".join(values.keys()) or "(비어 있음)"
+        missing = []
+        if not ak: missing.append("ACCESS KEY")
+        if not sk: missing.append("SECRET KEY")
+        sys.exit(
+            f"[오류] {env_path} 에서 {' / '.join(missing)} 를 찾지 못했습니다.\n"
+            f"       파일에 있는 항목: {found}\n\n"
+            "       아래 이름 중 하나로 바꿔주세요:\n"
+            "         COUPANG_ACCESS_KEY=...   (또는 ACCESS_KEY)\n"
+            "         COUPANG_SECRET_KEY=...   (또는 SECRET_KEY)"
+        )
     return ak, sk
 
 
