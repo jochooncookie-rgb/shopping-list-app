@@ -77,3 +77,43 @@ python3 -m http.server 8000
 > Claude Code 세션에서는 실행되지 않습니다. 이 환경의 이그레스 정책이 `law.go.kr`,
 > `data.go.kr`, `customs.go.kr` 를 포함한 정부 도메인에 대해 CONNECT 403을 반환합니다.
 > 로컬 PC에서 실행하세요.
+
+## 쿠팡 시장조사 (`tools/coupang-research.py`)
+
+사입 후보 상품이 쿠팡에서 얼마에 팔리는지 자동 조회합니다.
+판정기의 "한국 최저가" 판단을 채우는 용도입니다. **파이썬 표준 라이브러리만 씁니다.**
+
+```sh
+# 1) 쿠팡 파트너스 로그인 → 상단 [Tools] → 파트너스 API 발급
+# 2) .env 생성
+#    COUPANG_ACCESS_KEY=액세스키
+#    COUPANG_SECRET_KEY=시크릿키
+
+python tools/coupang-research.py "일본 캔버스 에코백"
+python tools/coupang-research.py "시세이도 퍼펙트휩" "로토 안약" --limit 30
+python tools/coupang-research.py --file keywords.txt --out 조사결과.csv
+```
+
+출력: 검색 결과 수, 로켓배송 비율, 최저·중간·최고가, 상위 8건 목록, CSV 저장,
+그리고 **"사입 원가가 얼마 이하여야 마진이 나는지"** 역산.
+
+| 옵션 | 설명 |
+|---|---|
+| `--limit N` | 키워드당 조회 건수 (기본 30) |
+| `--env 경로` | `.env` 위치 (기본: 현재 폴더) |
+| `--file 파일` | 검색어가 한 줄에 하나씩 든 텍스트 파일 |
+| `--out 경로` | CSV 저장 경로 |
+| `--no-cache` | 캐시 무시하고 새로 조회 |
+
+### 시간당 10회 제한
+
+쿠팡 Search API는 **시간당 10회**만 호출됩니다. 스크립트가 호출 수를 세어
+한도에 닿으면 스스로 멈추고, 한 번 조회한 키워드는 **24시간 캐시**되어 쿼터를
+쓰지 않습니다. 상태는 `~/.coupang-research/` 에 저장됩니다.
+
+### 주의
+
+- **`.env`를 저장소에 커밋하지 마세요.** Access/Secret Key가 들어 있습니다.
+- 서명에 현재 시각이 들어가므로 **PC 시계가 어긋나면 401**이 납니다.
+- 이 API는 **쿠팡 파트너스(제휴)** API입니다. 상품 등록·주문 조회 같은 판매자
+  기능은 **쿠팡 Wing 오픈API**가 따로 있습니다.
