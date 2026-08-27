@@ -257,49 +257,164 @@ def deep_find_products(obj, depth=0):
     return None
 
 
+# ─────────────────────────────────────────────────────────── 경쟁 분석
+# 판매가에서 원가까지 역산할 때 쓰는 계수.
+#   판매수수료 10.5%(VAT포함) + 물류비 + 광고비 15% + 실납부 부가세를 빼고 나면
+#   수입원가로 쓸 수 있는 돈이 남고, 거기서 부대비용 38%를 다시 빼야 사입가가 된다.
+FEE_RATE, AD_RATE, OVERHEAD = 0.105, 0.15, 1.38
+LOGI_GROWTH, LOGI_SELF = 2800, 3000
+
+
+def max_source_price(sell_price, logi=LOGI_GROWTH):
+    """이 가격에 팔려면 사입가가 얼마 이하여야 하는지."""
+    fee = sell_price * FEE_RATE * 1.1
+    ad = sell_price * AD_RATE
+    lo, hi = 0.0, float(sell_price)
+    for _ in range(50):
+        c = (lo + hi) / 2
+        vat_due = sell_price / 11 - (c / 11 + fee / 11 + logi / 11)
+        if sell_price - c - fee - logi - ad - vat_due > 0:
+            lo = c
+        else:
+            hi = c
+    return lo / OVERHEAD
+
+
+def min_sell_price(source_price, logi=LOGI_GROWTH):
+    """이 사입가면 최소 얼마에 팔아야 본전인지."""
+    lo, hi = 0.0, source_price * 20 + 100000
+    for _ in range(60):
+        p = (lo + hi) / 2
+        if max_source_price(p, logi) < source_price:
+            lo = p
+        else:
+            hi = p
+    return hi
+
+
+STOP = {"개", "세트", "무료배송", "당일발송", "정품", "신상", "특가", "할인", "+",
+        "및", "와", "과", "the", "for", "of"}
+
+
+def keyword_freq(rows):
+    """경쟁 상품명을 토큰화해 빈출 키워드를 센다."""
+    from collections import Counter
+    c = Counter()
+    for r in rows:
+        seen = set()
+        for tok in str(r["상품명"]).replace("/", " ").replace(",", " ").split():
+            tok = tok.strip("()[]·+")
+            if len(tok) < 2 or tok.lower() in STOP:
+                continue
+            if any(ch.isdigit() for ch in tok) and not any(
+                    "\uac00" <= ch <= "\ud7a3" for ch in tok):
+                continue          # 숫자·모델번호만인 토큰 제외
+            if tok not in seen:
+                c[tok] += 1
+                seen.add(tok)
+    return c
+
+
+def price_histogram(prices):
+    """가격대 분포를 막대로."""
+    if not prices:
+        return []
+    bands = [(0, 10000), (10000, 20000), (20000, 30000), (30000, 50000),
+             (50000, 10**9)]
+    labels = ["~1만원", "1~2만원", "2~3만원", "3~5만원", "5만원~"]
+    out = []
+    for (lo, hi), lab in zip(bands, labels):
+        n = len([p for p in prices if lo <= p < hi])
+        if n:
+            out.append((lab, n))
+    return out
+
+
 def report(keyword, rows, from_cache=None, raw=None):
     print()
-    print("═" * 62)
+    print("═" * 64)
     src = f"  (캐시 {from_cache:.1f}시간 전)" if from_cache is not None else ""
     print(f"  🔍 {keyword}{src}")
-    print("═" * 62)
+    print("═" * 64)
 
     if not rows:
-        # 응답 본문에 상품처럼 생긴 게 정말 없는지 한 번 더 확인한다
         salvaged = deep_find_products(raw) if raw else None
         if salvaged:
-            print(f"  ⚠️  응답에 상품 {len(salvaged)}건이 있는데 이 스크립트가 해석하지 못했습니다.")
+            print(f"  ⚠️  응답에 상품 {len(salvaged)}건이 있는데 해석하지 못했습니다.")
             print("      --debug 로 원본을 저장해 알려주시면 파서를 고치겠습니다.")
             return None
         print("  검색 결과 0건.")
-        print("  ├ 검색어가 너무 구체적일 수 있습니다 → 단어를 줄여 다시 조회해보세요")
-        print("  │  예) '일본 캔버스 에코백' → '캔버스 에코백' → '에코백'")
-        print("  └ 넓은 검색어(예: 에코백)도 0건이면 API 응답 문제일 수 있습니다")
+        print("  ├ 검색어가 너무 구체적일 수 있습니다 → 단어를 줄여 다시 조회")
+        print("  └ 넓은 검색어도 0건이면 API 응답 문제일 수 있습니다")
         return None
 
     prices = sorted(r["가격"] for r in rows if r["가격"])
     rocket = sum(1 for r in rows if r["로켓배송"])
+    lo, mid = prices[0], statistics.median(prices)
 
-    print(f"  검색 결과 {len(rows)}건 · 로켓배송 {rocket}건 ({rocket*100//len(rows)}%)")
-    if prices:
-        print(f"  최저 {won(prices[0])} · 중간 {won(statistics.median(prices))} · 최고 {won(prices[-1])}")
-    print("─" * 62)
-    for r in rows[:8]:
+    # ── 가격 분포 ──
+    print("\n  【 가격 분포 】")
+    hist = price_histogram(prices)
+    top_band = max(hist, key=lambda x: x[1]) if hist else None
+    for lab, n in hist:
+        bar = "█" * n
+        mark = "  ← 주력 구간" if top_band and lab == top_band[0] else ""
+        print(f"    {lab:<8} {bar} {n}건{mark}")
+    print(f"    최저 {won(lo)} · 중간 {won(mid)} · 최고 {won(prices[-1])}")
+
+    # ── 채널 판단 ──
+    pct = rocket * 100 // len(rows)
+    print(f"\n  【 채널 】 로켓배송 {rocket}/{len(rows)}건 ({pct}%)")
+    if pct >= 70:
+        print("    ⚠️  상위권이 대부분 로켓입니다. 판매자배송으로는 노출에서 밀립니다.")
+        print("       → 로켓그로스를 전제로 원가를 계산하세요.")
+    elif pct <= 30:
+        print("    ⭕ 판매자배송 상품이 많습니다. 마켓플레이스로 시작해도 됩니다.")
+
+    # ── 진입 가능 사입가 ──
+    src_lo, src_mid = max_source_price(lo), max_source_price(mid)
+    print("\n  【 진입 가능 사입가 】 (로켓그로스·광고 15% 기준)")
+    print(f"    최저가 {won(lo)}에 맞추려면 → 사입가 {won(src_lo)} 이하 (약 ¥{src_lo/9.5:,.0f})")
+    print(f"    중간가 {won(mid)}에 팔려면 → 사입가 {won(src_mid)} 이하 (약 ¥{src_mid/9.5:,.0f})")
+
+    # ── 경쟁자 키워드 ──
+    freq = keyword_freq(rows)
+    common = [(w, c) for w, c in freq.most_common(8) if c >= 2]
+    rare = [w for w, c in freq.items() if c == 1][:10]
+    if common:
+        print("\n  【 경쟁자가 쓰는 키워드 】 상품명에 넣을 것")
+        print("    " + " · ".join(f"{w}({c})" for w, c in common))
+    if rare:
+        print("\n  【 아무도 안 쓰는 단어 】 롱테일 기회")
+        print("    " + " · ".join(rare[:8]))
+
+    # ── 상위 상품 + 링크 ──
+    print("\n  【 경쟁 상품 】")
+    for r in rows[:5]:
         tag = "🚀" if r["로켓배송"] else "  "
-        name = r["상품명"][:34]
-        print(f"  {tag} {won(r['가격']):>12}  {name}")
-    if len(rows) > 8:
-        print(f"     … 외 {len(rows)-8}건 (CSV에 전부 저장됩니다)")
+        print(f"    {tag} {won(r['가격']):>10}  {r['상품명'][:38]}")
+        if r["링크"]:
+            print(f"        {r['링크'][:70]}")
 
-    if prices:
-        print("─" * 62)
-        low = prices[0]
-        print(f"  💡 사입 판단: 사입 원가가 {won(low/2.5)} 이하여야 마진이 납니다.")
-        print(f"     (한국 최저가 {won(low)} ÷ 2.5 — 부대비용·수수료·광고비 감안)")
-    return {"최저가": prices[0] if prices else 0,
-            "중간가": statistics.median(prices) if prices else 0,
-            "최고가": prices[-1] if prices else 0,
-            "결과수": len(rows), "로켓배송수": rocket}
+    # ── 최종 판정 ──
+    print("\n" + "─" * 64)
+    if src_lo < 1500:
+        verdict, msg = "✕ 비추천", "최저가 경쟁이 극심합니다. 이 사입가로는 일본에서 못 구합니다."
+    elif src_mid < 3000:
+        verdict, msg = "△ 조건부", "최저가 경쟁은 포기하고, 디자인·브랜드로 중간가대를 노려야 합니다."
+    else:
+        verdict, msg = "○ 검토 가치", "사입가 여유가 있습니다. 인증 요건만 확인하세요."
+    if pct >= 70:
+        msg += " 로켓그로스 필수."
+    print(f"  판정: {verdict}")
+    print(f"  {msg}")
+    print("─" * 64)
+    print("  ※ 이 API는 판매량·리뷰수를 제공하지 않습니다. 실제 판매 규모는")
+    print("    위 링크를 열어 리뷰 수를 보거나, 네이버 데이터랩으로 검색량을 확인하세요.")
+
+    return {"최저가": lo, "중간가": mid, "최고가": prices[-1],
+            "결과수": len(rows), "로켓배송수": rocket,
+            "진입사입가": round(src_mid), "판정": verdict}
 
 
 # ─────────────────────────────────────────────────────────── main
@@ -377,9 +492,10 @@ def main():
         print("\n" + "═" * 62)
         print("  📊 키워드별 요약")
         print("═" * 62)
-        print(f"  {'검색어':<22}{'결과':>5}{'최저가':>12}{'중간가':>12}")
+        print(f"  {'검색어':<18}{'결과':>4}{'최저가':>11}{'진입사입가':>11}  판정")
         for s in summary:
-            print(f"  {s['검색어'][:20]:<22}{s['결과수']:>5}{won(s['최저가']):>12}{won(s['중간가']):>12}")
+            print(f"  {s['검색어'][:16]:<18}{s['결과수']:>4}{won(s['최저가']):>11}"
+                  f"{won(s['진입사입가']):>11}  {s['판정']}")
 
     print(f"\n남은 호출 {HOURLY_LIMIT - quota_used()}회\n")
 
