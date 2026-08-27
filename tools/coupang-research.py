@@ -47,6 +47,7 @@ DOMAIN = "https://api-gateway.coupang.com"
 SEARCH_PATH = "/v2/providers/affiliate_open_api/apis/openapi/products/search"
 
 HOURLY_LIMIT = 10          # 쿠팡 Search API 시간당 호출 한도
+MAX_LIMIT = 10             # 한 번에 받을 수 있는 최대 상품 수 (초과 시 400 "limit is out of range")
 CACHE_HOURS = 24
 STATE_DIR = Path.home() / ".coupang-research"
 
@@ -205,6 +206,8 @@ def check_rcode(payload, keyword):
     rmsg = payload.get("rMessage", "")
     if rcode not in ("0", "00", ""):
         print(f"  ⚠️  쿠팡 응답 코드 {rcode}: {rmsg}")
+        if "limit" in str(rmsg).lower():
+            print(f"      → --limit 은 1~{MAX_LIMIT} 만 허용됩니다.")
         return False
     return True
 
@@ -306,7 +309,8 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("keywords", nargs="*", help="조회할 검색어 (여러 개 가능)")
     p.add_argument("--file", help="검색어가 한 줄에 하나씩 든 텍스트 파일")
-    p.add_argument("--limit", type=int, default=30, help="키워드당 조회 건수 (기본 30)")
+    p.add_argument("--limit", type=int, default=MAX_LIMIT,
+                   help=f"키워드당 조회 건수 (1~{MAX_LIMIT}, 기본 {MAX_LIMIT})")
     p.add_argument("--env", default=".env", help=".env 경로 (기본: 현재 폴더)")
     p.add_argument("--out", default="coupang-research.csv", help="CSV 저장 경로")
     p.add_argument("--cache-hours", type=int, default=CACHE_HOURS, help="캐시 유효시간 (기본 24)")
@@ -321,6 +325,11 @@ def main():
     if not keywords:
         p.print_help()
         sys.exit(0)
+
+    if args.limit > MAX_LIMIT or args.limit < 1:
+        print(f"\n[알림] --limit 은 1~{MAX_LIMIT} 만 됩니다 (쿠팡 제한). "
+              f"{args.limit} → {MAX_LIMIT} 으로 조정합니다.")
+        args.limit = MAX_LIMIT
 
     ak, sk = load_keys(Path(args.env).expanduser())
 
