@@ -358,6 +358,54 @@
 
     .empty { text-align: center; color: #a0aec0; padding: 26px 0; font-size: 0.9rem; }
 
+    /* 현장 즉시 판정 — 도매상에서 두 칸만 채워 쓰는 카드 */
+    .quick {
+      background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+      color: #fff;
+    }
+    .quick h2 { color: #fff; }
+    .quick .hint { color: #c7d2fe; }
+    .quick label { color: #e0e7ff; }
+    .quick input {
+      border-color: rgba(255,255,255,0.35);
+      background: rgba(255,255,255,0.12);
+      color: #fff;
+      font-size: 1.15rem;
+      font-weight: 700;
+      text-align: center;
+    }
+    .quick input::placeholder { color: rgba(255,255,255,0.45); font-weight: 400; }
+    .quick input:focus { border-color: #fff; background: rgba(255,255,255,0.2); }
+
+    .quick-out {
+      margin-top: 14px;
+      border-radius: 12px;
+      padding: 15px 16px;
+      background: rgba(255,255,255,0.14);
+      border: 1px solid rgba(255,255,255,0.25);
+      line-height: 1.6;
+    }
+    .quick-out .q-big {
+      font-size: 1.35rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: baseline;
+      gap: 9px;
+      flex-wrap: wrap;
+    }
+    .quick-out .q-sub { font-size: 0.82rem; color: #e0e7ff; }
+    .quick-out b { font-variant-numeric: tabular-nums; }
+    .quick-out.pass  { background: rgba(154,230,180,0.22); border-color: #9ae6b4; }
+    .quick-out.tight { background: rgba(251,211,141,0.22); border-color: #fbd38d; }
+    .quick-out.fail  { background: rgba(254,178,178,0.22); border-color: #feb2b2; }
+    .quick-rule {
+      font-size: 0.74rem;
+      color: #c7d2fe;
+      margin-top: 11px;
+      line-height: 1.6;
+    }
+
     .foot {
       font-size: 0.75rem;
       color: #a0aec0;
@@ -373,6 +421,37 @@
 
   <h1>🇯🇵 일본 사입 판정기</h1>
   <p class="sub">도매상에서 폰으로 바로 쓰는 툴. 바코드 스캔 → 국내 판매 확인 → 관세·쿠팡 수수료까지 반영한 실제 마진 계산.</p>
+
+  <!-- ========== 0. 현장 즉시 판정 ========== -->
+  <div class="card quick">
+    <h2>⚡ 현장 즉시 판정</h2>
+    <p class="hint">도매상에서 가격표를 보고 <b>두 칸만</b> 채우세요. 아래 카드의 설정(채널·관세율·통관방식)을 그대로 반영해 계산합니다.</p>
+
+    <div class="grid2">
+      <div class="field" style="margin-bottom:0">
+        <label for="qJpy">일본 가격 (¥ / 개)</label>
+        <input type="number" id="qJpy" min="0" step="10" inputmode="decimal" placeholder="500">
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label for="qKrw">한국 최저가 (₩)</label>
+        <input type="number" id="qKrw" min="0" step="100" inputmode="numeric" placeholder="19900">
+      </div>
+    </div>
+
+    <div class="field" style="margin:11px 0 0">
+      <label for="qAd">광고비 (매출 대비 %) — 리뷰 없는 신규 셀러는 15% 아래로 안 내려갑니다</label>
+      <input type="number" id="qAd" value="15" min="0" max="60" step="1" inputmode="decimal">
+    </div>
+
+    <div class="quick-out" id="quickOut"></div>
+
+    <p class="quick-rule">
+      <b>암산용</b> — 한국 최저가 ÷ 25 = 지불 가능한 최대 엔화 (한국 30,000원이면 ¥1,200).
+      저가품일수록 물류비 비중이 커져 실제로는 더 빡빡합니다.<br>
+      이 카드는 그 어림값이 아니라 <b>아래 입력값(수량·운송비·관세율·통관방식·채널)으로 실제 역산</b>한 값입니다.
+      아래 <b>⑤ 판정</b>은 광고비를 빼지 않은 값이라 여기보다 후하게 나옵니다 — 현장 판단은 이 카드를 보세요.
+    </p>
+  </div>
 
   <!-- ========== 1. 바코드 ========== -->
   <div class="card">
@@ -608,7 +687,7 @@
     관세청 콜센터 <b>125</b> · <a href="https://unipass.customs.go.kr" target="_blank" rel="noopener">UNIPASS</a> ·
     <a href="https://www.safetykorea.kr/policy/targetsSafetyCert" target="_blank" rel="noopener">KC 인증 대상 조회</a><br>
     <a href="guide.html">📄 실무 가이드</a> · <a href="hsk.html">📝 신고서 작성 도우미</a> · <a href="./">도구 모음</a><br>
-    <span style="opacity:.7">빌드 <b id="ver">v19 · 2026-08-26</b> — 이 값이 최신과 다르면 캐시입니다. 주소 뒤에 <code>?v=20</code> 을 붙여 새로고침하세요.</span>
+    <span style="opacity:.7">빌드 <b id="ver">v20 · 2026-08-28</b> — 이 값이 최신과 다르면 캐시입니다. 주소 뒤에 <code>?v=21</code> 을 붙여 새로고침하세요.</span>
   </p>
 
 </div>
@@ -992,13 +1071,14 @@ function syncMisc() {
 // 모든 원가는 "부가세 포함" 기준으로 다룬다.
 // 판매가가 VAT 포함이므로, 빼는 항목도 VAT 포함이어야 실제 현금흐름과 일치한다.
 // 그 위에서 실납부 부가세(매출세액 − 매입세액 − 공제세액)를 한 줄로 뺀다.
-function calc(priceOverride) {
+function calc(priceOverride, jpyOverride) {
   const qty   = Math.max(1, +$('qty').value || 1);
   const fx    = (+$('fx').value || 0) / 100;                 // 1엔당 원
   const share = Math.min(100, Math.max(1, +$('share').value || 100)) / 100;
 
   // ── 수입 원가 ──
-  const cif     = (+$('unitJpy').value || 0) * qty * fx + (+$('ship').value || 0);
+  const unitJpy = jpyOverride !== undefined ? jpyOverride : (+$('unitJpy').value || 0);
+  const cif     = unitJpy * qty * fx + (+$('ship').value || 0);
   const dutyAmt = cif * (+$('duty').value || 0) / 100;
   // 관세법 제242조상 신고는 화주 또는 관세사 명의로 가능하다.
   // 자가통관(화주 직접신고)이면 관세사 통관수수료가 발생하지 않는다.
@@ -1065,7 +1145,106 @@ function breakEvenPrice() {
   return bep > 0 ? bep : null;
 }
 
+// 아래 상세 카드는 광고비를 빼지 않고 손익분기 ROAS로 판단한다.
+// 하지만 도매상에서 살지 말지를 정하는 자리에서는 광고비를 빼야 한다.
+// 리뷰 0개인 신규 셀러가 광고 없이 파는 건 불가능하고, 광고비를 빼지 않으면
+// 살 수 있는 단가가 40% 넘게 부풀려져 현장에서 과지불하게 된다.
+//
+// 광고비는 매출 대비 %로 잡고 VAT 포함으로 본다. 광고 세금계산서의 매입세액은
+// 공제되므로 실제 현금 유출은 광고비 × 10/11 이다.
+function adFactor() {
+  return (+$('qAd').value || 0) / 100 * (10 / 11);
+}
+
+// 개당 수익은 사입 단가(엔)에 대해서도 선형(감소)이므로 같은 두 점 기법을 쓴다.
+// 반환값 = 이 판매가에서 광고비까지 내고 본전이 되는 최대 엔화 단가.
+function breakEvenJpy(price) {
+  const target = price * adFactor();                 // 이만큼은 남아야 광고비를 낸다
+  const j1 = 0, j2 = 1000;
+  const y1 = calc(price, j1).profit, y2 = calc(price, j2).profit;
+  const slope = (y2 - y1) / (j2 - j1);
+  if (!isFinite(slope) || slope >= 0) return null;   // 환율 0 등 비정상
+  if (y1 <= target) return 0;                        // 공짜로 받아와도 광고비가 안 나옴
+  return (target - y1) / slope;
+}
+
+// 광고비까지 반영한 손익분기 판매가. profit(p) = p × adFactor 를 푼다.
+function breakEvenPriceAd() {
+  const k = adFactor();
+  const p1 = 10000, p2 = 20000;
+  const y1 = calc(p1).profit, y2 = calc(p2).profit;
+  const b = (y2 - y1) / (p2 - p1);                   // 기울기
+  const a = y1 - b * p1;                             // 절편
+  const denom = k - b;
+  if (!isFinite(denom) || denom === 0) return null;
+  const bep = a / denom;
+  return bep > 0 ? bep : null;
+}
+
+// 현장 즉시 판정 — 일본 가격과 한국 최저가만으로 통과/탈락을 낸다.
+function renderQuick() {
+  const box = $('quickOut');
+  const jpy = +$('qJpy').value || 0;
+  const krw = +$('qKrw').value || 0;
+
+  if (!jpy || !krw) {
+    box.className = 'quick-out';
+    box.innerHTML = '<div class="q-sub">두 칸을 채우면 살지 말지 바로 나옵니다. '
+                  + '한국 최저가는 위 <b>①</b> 의 국내 판매 확인으로 찾으세요.</div>';
+    return;
+  }
+
+  const maxJpy = breakEvenJpy(krw);
+  const fx = (+$('fx').value || 0) / 100;
+
+  if (maxJpy === null) { box.className = 'quick-out'; box.textContent = '환율을 확인하세요.'; return; }
+
+  if (maxJpy <= 0) {
+    box.className = 'quick-out fail';
+    box.innerHTML = `<div class="q-big">✕ 탈락</div>
+      <div class="q-sub">판매가 ${won(krw)} 로는 <b>공짜로 받아와도</b> 남지 않습니다.
+      수수료·물류비·광고비·부가세가 판매가를 다 먹습니다. 이 가격대는 포기하세요.</div>`;
+    return;
+  }
+
+  // 이 엔화 단가로 사려면 한국에서 최소 얼마를 받아야 하는가
+  const needKrw = (() => {
+    const saved = $('unitJpy').value;
+    $('unitJpy').value = jpy;
+    const bep = breakEvenPriceAd();
+    $('unitJpy').value = saved;
+    return bep;
+  })();
+
+  const ratio  = jpy / maxJpy;               // 1 이상이면 탈락
+  const room   = maxJpy - jpy;
+  const cls    = ratio > 1 ? 'fail' : (ratio > 0.8 ? 'tight' : 'pass');
+  const mark   = ratio > 1 ? '✕ 탈락' : (ratio > 0.8 ? '△ 빠듯함' : '○ 통과');
+
+  let msg;
+  if (ratio > 1) {
+    msg = `이 판매가에서 살 수 있는 최대 단가는 <b>¥${Math.floor(maxJpy).toLocaleString()}</b> 입니다.
+           <b>¥${Math.round(jpy - maxJpy).toLocaleString()} 초과</b>입니다.`;
+  } else {
+    msg = `최대 <b>¥${Math.floor(maxJpy).toLocaleString()}</b> 까지 가능 —
+           <b>¥${Math.floor(room).toLocaleString()}</b> 여유.`;
+  }
+
+  box.className = 'quick-out ' + cls;
+  box.innerHTML = `
+    <div class="q-big">${mark} <span style="font-size:0.8rem;font-weight:600;opacity:.85">
+      사입가가 판매가의 ${(jpy * fx / krw * 100).toFixed(0)}%</span></div>
+    <div class="q-sub">${msg}<br>
+      ¥${jpy.toLocaleString()} 에 사려면 한국에서 최소
+      <b>${needKrw ? won(needKrw) : '—'}</b> 에 팔려야 합니다.
+      ${needKrw && needKrw > krw
+        ? `현재 최저가보다 <b>${won(needKrw - krw)}</b> 높습니다.`
+        : ''}
+    </div>`;
+}
+
 function render() {
+  renderQuick();
   const r = calc();
   const cat = CATEGORIES[+$('cat').value];
 
@@ -1313,6 +1492,23 @@ $('misc').addEventListener('input', () => {
 
 ['duty','share','trip','price','fee','logi','monthly','credit','storage','retRate','retCost']
   .forEach(id => $(id).addEventListener('input', render));
+
+// 현장 판정 두 칸은 아래 상세 입력의 창구다. 어느 쪽을 고쳐도 서로 따라온다.
+$('qJpy').addEventListener('input', () => {
+  $('unitJpy').value = $('qJpy').value;
+  syncMisc();
+  render();
+});
+$('qKrw').addEventListener('input', () => {
+  $('price').value = $('qKrw').value;
+  render();
+});
+$('qAd').addEventListener('input', renderQuick);
+$('unitJpy').addEventListener('input', () => { $('qJpy').value = $('unitJpy').value; });
+$('price').addEventListener('input',   () => { $('qKrw').value = $('price').value; });
+
+$('qJpy').value = $('unitJpy').value;
+$('qKrw').value = $('price').value;
 
 applyCategory();
 applyChannel();
