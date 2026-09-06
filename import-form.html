@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>수입신고서 작성 가이드</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', -apple-system, sans-serif; background: #f0f4f8;
+         color: #2d3748; line-height: 1.65; padding: 28px 14px 60px; }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; color: #1a202c; margin-bottom: 6px; }
+  .sub { font-size: 0.85rem; color: #718096; margin-bottom: 20px; }
+  .card { background: #fff; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,.08);
+          padding: 22px 20px; margin-bottom: 16px; }
+  h2 { font-size: 1.05rem; color: #1a202c; margin-bottom: 10px; }
+  h3 { font-size: 0.92rem; color: #4a5568; margin: 18px 0 7px; }
+  h3:first-of-type { margin-top: 4px; }
+  p, li { font-size: 0.88rem; }
+  ul, ol { padding-left: 20px; margin: 8px 0; }
+  li { margin-bottom: 5px; }
+  code { background: #edf2f7; padding: 1px 6px; border-radius: 5px;
+         font-family: ui-monospace, Menlo, monospace; font-size: 0.85em; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin: 10px 0; }
+  th { background: #4f46e5; color: #fff; padding: 8px 9px; text-align: left; font-weight: 600; }
+  td { padding: 8px 9px; border-bottom: 1px solid #edf2f7; vertical-align: top; }
+  tr:nth-child(even) td { background: #fafbfc; }
+  .scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .note { font-size: 0.82rem; border-radius: 10px; padding: 12px 14px; margin: 12px 0; line-height: 1.7; }
+  .warn { background: #fff5f5; border: 1px solid #feb2b2; color: #822727; }
+  .tip  { background: #f0fff4; border: 1px solid #9ae6b4; color: #22543d; }
+  .info { background: #f7f8ff; border: 1px solid #d6d9f5; color: #434190; }
+  .note b { display: block; margin-bottom: 3px; }
+  .src { font-size: 0.75rem; color: #a0aec0; border-top: 1px solid #edf2f7;
+         padding-top: 10px; margin-top: 14px; }
+  a { color: #4f46e5; }
+  .foot { text-align: center; font-size: 0.75rem; color: #a0aec0; margin-top: 22px; line-height: 1.8; }
+  .q { background: #fffaf0; border-left: 3px solid #fbd38d; padding: 9px 13px;
+       margin: 9px 0; font-size: 0.83rem; color: #7b341e; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>📋 수입신고서 작성 가이드</h1>
+<p class="sub">자가통관으로 유니패스에 직접 신고할 때. 관세청 「수입통관 사무처리에 관한 고시」 별지 제1호의2서식 기준.</p>
+
+<!-- ── 준비물 ── -->
+<div class="card">
+  <h2>시작 전 준비물</h2>
+  <table>
+    <tr><th style="width:38%">항목</th><th>어디서</th></tr>
+    <tr><td>사업자등록증 (일반과세자)</td><td>홈택스</td></tr>
+    <tr><td>통관고유부호</td><td>유니패스 — 사업자등록 후 발급</td></tr>
+    <tr><td>인보이스 (송품장)</td><td>일본 매입처. 품명·수량·단가·원산지 기재</td></tr>
+    <tr><td>포장명세서</td><td>직접 작성 가능</td></tr>
+    <tr><td>B/L 또는 AWB 번호</td><td>운송사·특송사</td></tr>
+    <tr><td>화물관리번호</td><td>유니패스 → 화물진행정보 조회</td></tr>
+    <tr><td>HSK 10자리</td><td>관세법령정보포털(CLIP)에서 품목별 확정</td></tr>
+  </table>
+</div>
+
+<!-- ── 상표명 경고 ── -->
+<div class="card">
+  <h2>⚠️ 상표명은 숨길 수 없습니다</h2>
+  <div class="note warn">
+    <b>고시 원문</b>
+    상표는 <b>지식재산권 확인</b>, 원산지 확인, 가격심사 등에 <b>필수적인 기재요소</b>로서,
+    상표가 있는 물품을 “없음”으로 기재하는 것은 <b>불가함</b>
+  </div>
+  <p>신고서의 <code>상표명</code> 은 별도 항목입니다. 규칙이 이렇습니다.</p>
+  <ul>
+    <li>상표가 있으면 <b>반드시</b> 그 상표를 적습니다</li>
+    <li>상표가 없을 때만 <code>NO</code> 라고 씁니다</li>
+    <li><code>BRAND</code> 라는 단어 자체는 쓸 수 없습니다</li>
+    <li>상표가 둘 이상이면 <b>란을 나눠</b> 신고합니다</li>
+    <li>도형상표는 관세청 홈페이지에서 조회해 해당 상표명을 적습니다</li>
+  </ul>
+  <div class="q">
+    캐릭터·브랜드 상품을 신고하면 상표명이 그대로 <b>세관 지식재산권 대조</b>로 들어갑니다.
+    구조적으로 우회할 방법이 없고, 허위 기재는 그 자체가 위법입니다.
+    <b>상표권 확인은 선택이 아니라 신고서를 쓰기 위한 전제입니다.</b>
+  </div>
+</div>
+
+<!-- ── 항목별 ── -->
+<div class="card">
+  <h2>주요 항목 작성법</h2>
+  <div class="scroll">
+  <table>
+    <tr><th style="width:22%">항목</th><th>작성 요령</th></tr>
+    <tr><td>신고번호</td><td>유니패스가 부여. 신고인부호+연도+일련번호+서식부호(수입신고는 <code>M</code>)</td></tr>
+    <tr><td>세관-과</td><td>통관지 세관·과 부호. 통계부호표 참조</td></tr>
+    <tr><td>B/L(AWB)번호</td><td>항공은 AWB, 특송은 운송장번호</td></tr>
+    <tr><td>화물관리번호</td><td>적하목록 기준. 유니패스 화물진행정보에서 확인</td></tr>
+    <tr><td>수입자 /<br>납세의무자</td><td>둘이 같으면 구분부호 <code>A</code>, 다르면 <code>B</code>.<br>납세의무자에 <b>사업자등록번호 + 통관고유부호</b></td></tr>
+    <tr><td>해외거래처</td><td>공급자 상호를 <b>영문</b>으로. 법인격 약어 규칙 있음 (Corporation→CORP 등)</td></tr>
+    <tr><td>세번부호</td><td><b>HSK 10자리.</b> 전자문서 <code>6106202000</code> / 서류 <code>6106.20-2000</code></td></tr>
+    <tr><td>과세가격</td><td><b>CIF 기준.</b> 미화는 소수점 첫째자리에서 <b>올림</b>, 원화는 소수점 <b>버림</b><br>예) $8,150.01 → $8,151 · ₩1,235.99 → ₩1,235</td></tr>
+    <tr><td>결제금액</td><td><code>인도조건-통화-금액-결제방법</code> 순.<br>인도조건은 <b>INCOTERMS 2020</b> 코드. 예) <code>CFR-USD-100,001,310-DA</code></td></tr>
+    <tr><td>환율</td><td><b>관세청 고시환율.</b> 카드 결제 환율도, 실시간 환율도 아닙니다<br>결제금액이 없어도 환율은 기재</td></tr>
+    <tr><td>순중량</td><td>포장용기를 <b>제외</b>한 중량. 단위는 <code>KG</code></td></tr>
+    <tr><td>총중량</td><td>포장용기를 <b>포함</b>한 신고물품 전체 중량</td></tr>
+    <tr><td>원산지</td><td>국가부호. 일본은 <code>JP</code></td></tr>
+  </table>
+  </div>
+  <div class="note warn">
+    <b>환율이 제일 자주 틀립니다</b>
+    관세청이 <b>주 단위로 고시하는 환율</b>을 씁니다. 카드사가 적용한 환율이나 네이버 환율이 아닙니다.
+    유니패스에서 조회해 그 값을 그대로 넣으세요.
+  </div>
+</div>
+
+<!-- ── 품명규격 ── -->
+<div class="card">
+  <h2>품명·규격 — 5개 항목</h2>
+  <p>고시가 말하는 “품명·규격”은 아래 <b>다섯 항목의 총칭</b>입니다.</p>
+  <div class="scroll">
+  <table>
+    <tr><th style="width:20%">항목</th><th>뜻</th></tr>
+    <tr><td>품명</td><td><b>관세율표상의 품명.</b> 관세율표에 없으면 일반적인 상품명</td></tr>
+    <tr><td>거래품명</td><td>실제 상거래에서 <b>송품장(인보이스)에 적힌</b> 품명</td></tr>
+    <tr><td>상표명</td><td>상표. 없으면 <code>NO</code></td></tr>
+    <tr><td>모델·규격</td><td>모델 = 생산방식·타입 / 규격 = 재질·가공상태·용도·사이즈 등</td></tr>
+    <tr><td>성분</td><td>구성성분의 종류와 함량</td></tr>
+  </table>
+  </div>
+
+  <h3>표기 원칙</h3>
+  <ul>
+    <li><b>영어와 아라비아 숫자로 표기.</b> 영어가 아니면 영어로 번역해 적습니다</li>
+    <li>모델이 있으면 규격 앞에 <code>MODEL:</code> 을 쓰고 영문 대문자로 기재</li>
+    <li>규격은 관세율표상 <code>OF</code>, <code>FOR</code>, <code>WITH</code> 같은 용어를 <b>그대로</b> 쓰는 게 좋습니다</li>
+    <li>세관장확인 대상 세번이면 <b>용도</b>를 영문으로 — <code>USE:EDIBLE</code>, <code>USE:INDUSTRIAL</code>, <code>USE:COSMETICS</code></li>
+  </ul>
+
+  <h3>고시의 기재 예시</h3>
+  <table>
+    <tr><th style="width:26%">물품</th><th>기재</th></tr>
+    <tr><td>냉동 홍어<br>(HS 0303.79-9093)</td><td>품명 <code>SKATE</code><br>규격 <code>FROZEN</code></td></tr>
+    <tr><td>엔진</td><td>품명 <code>ENGINE</code><br>규격 <code>GASOLINE ENGINE 2,500CC, FOR SEDAN, 1998YEAR</code></td></tr>
+  </table>
+  <p style="font-size:.83rem;color:#718096">홍어는 냉동 여부만 쓰면 되고, 엔진은 품목분류 확인에 필요한 요소를 여러 개 씁니다.
+  <b>“무엇이 분류·세율·요건을 가르는가”</b> 가 기준입니다.</p>
+</div>
+
+<!-- ── 란 나누기 ── -->
+<div class="card">
+  <h2>란을 언제 나누나</h2>
+  <p><b>품목번호·품명·상표·원산지</b> 중 하나라도 다르면 <b>란을 달리해</b> 신고합니다.</p>
+  <div class="note tip">
+    <b>예외 — 합칠 수 있는 경우</b>
+    같은 품목번호로 분류되는 부분품·부속품·시약, 그리고
+    <b>개별 금액이 각각 20불 이하인 소량(5개 이내)</b> 물품은
+    대표 품명으로 묶고 나머지는 <code>모델·규격</code> 과 <code>성분</code> 항목에 차례로 적습니다.
+  </div>
+  <p>즉 <b>상표가 다르면 무조건 란이 갈립니다.</b> 캐릭터별로 나눠야 한다는 뜻입니다.</p>
+</div>
+
+<!-- ── 실제 예시 ── -->
+<div class="card">
+  <h2>잡화 품목 기재 예시</h2>
+  <p class="sub" style="margin-bottom:12px">일본 사입 잡화 기준. <b>HSK는 후보이고, CLIP에서 확정해야 합니다.</b></p>
+  <div class="scroll">
+  <table>
+    <tr><th>물품</th><th>HSK 후보</th><th>품명 / 상표명 / 규격</th></tr>
+    <tr>
+      <td>무지 캔버스 파우치</td><td>4202.32</td>
+      <td><code>POUCH</code> / <code>NO</code> /<br><code>OF TEXTILE MATERIALS, COTTON 100%, 20X15CM</code></td>
+    </tr>
+    <tr>
+      <td>캐릭터 지갑</td><td>4202.32</td>
+      <td><code>WALLET</code> / <b><code>실제 상표</code></b> /<br><code>OF PLASTIC SHEETING, 11X9CM</code></td>
+    </tr>
+    <tr>
+      <td>여성용 가방</td><td>4202.22</td>
+      <td><code>HANDBAG</code> / <code>NO</code> /<br><code>OF TEXTILE MATERIALS, 30X25X10CM</code></td>
+    </tr>
+    <tr>
+      <td>양말</td><td>6115</td>
+      <td><code>SOCKS</code> / <code>NO</code> /<br><code>KNITTED, COTTON 80% POLYESTER 20%</code></td>
+    </tr>
+    <tr>
+      <td>페이스타월</td><td>6302.60</td>
+      <td><code>TOWEL</code> / <b><code>실제 상표</code></b> /<br><code>OF TERRY TOWELLING, COTTON 100%, 34X80CM</code></td>
+    </tr>
+    <tr>
+      <td>플라스틱 펌프 용기</td><td>3923.30</td>
+      <td><code>BOTTLE</code> / <code>NO</code> /<br><code>OF PLASTICS, WITH PUMP, 300ML</code></td>
+    </tr>
+  </table>
+  </div>
+  <div class="note info">
+    <b>성분을 왜 적나</b>
+    섬유제품은 <b>혼용률로 세번이 갈립니다.</b> 면 100%와 폴리에스터 혼방이 다른 세번·다른 세율이 될 수 있습니다.
+    일본 매입처에 인보이스를 요청할 때 <b>소재 혼용률을 같이 적어달라</b>고 하세요.
+  </div>
+</div>
+
+<!-- ── 자주 틀리는 것 ── -->
+<div class="card">
+  <h2>자주 틀리는 것</h2>
+  <ol>
+    <li><b>환율</b> — 관세청 고시환율이 아닌 카드·실시간 환율을 넣음</li>
+    <li><b>과세가격</b> — CIF 기준인데 운임·보험료를 빼고 물건값만 넣음</li>
+    <li><b>상표명</b> — 상표가 있는데 <code>NO</code> 로 기재 (고시상 불가)</li>
+    <li><b>한글 기재</b> — 품명·규격은 영문만 됩니다</li>
+    <li><b>란 병합</b> — 상표나 원산지가 다른데 한 란에 몰아넣음</li>
+    <li><b>순중량 / 총중량 혼동</b> — 순중량은 포장 제외, 총중량은 포장 포함</li>
+  </ol>
+  <div class="note warn">
+    <b>금액이 큰 건은 사전심사를 받으세요</b>
+    HSK가 애매하면 <b>품목분류 사전심사</b>(관세평가분류원, 30일 / 신속 15일)를 신청할 수 있습니다.
+    법적 구속력이 있어 나중에 뒤집히지 않습니다.
+  </div>
+</div>
+
+<div class="card">
+  <h2>간이신고일 때</h2>
+  <p>간이 수입신고 대상이면 아래 항목을 적지 않을 수 있습니다.</p>
+  <p style="font-size:.83rem;color:#4a5568">
+    수입자 · 납세의무자의 <b>통관고유부호</b> · 운송주선인 · 통관계획 · 원산지증명서유무 ·
+    가격신고서유무 · 환급물량 · C/S검사 · 검사방법변경 · 사후확인기관 · 관세사기재란
+  </p>
+  <div class="src">
+    출처 — 관세청 「수입통관 사무처리에 관한 고시」 별지 제1호의2서식
+    <b>수입신고서 작성요령</b> (제12조제1항 관련).
+    본 페이지는 그 요령을 잡화 소량 수입 상황에 맞춰 발췌·정리한 것입니다.
+    조문 원문과 통계부호표는 관세청·유니패스에서 확인하세요.
+  </div>
+</div>
+
+<p class="foot">
+  <a href="index.html">← 도구 모음</a> ·
+  <a href="hsk.html">HSK 품명·규격 검색</a> ·
+  <a href="guide.html">실무 가이드</a><br>
+  빌드 v1 · 2026-09-06
+</p>
+
+</div>
+</body>
+</html>
