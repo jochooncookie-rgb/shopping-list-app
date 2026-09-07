@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>수입신고서 작성 도우미</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', -apple-system, sans-serif;
+    background: #f0f4f8;
+    color: #2d3748;
+    padding: 24px 12px 60px;
+    -webkit-text-size-adjust: 100%;
+  }
+  .wrap { max-width: 620px; margin: 0 auto; }
+
+  .back { display:inline-block; font-size:.85rem; color:#718096; text-decoration:none; margin-bottom:14px; }
+  .back:hover { color:#4f46e5; }
+
+  h1 { font-size:1.4rem; color:#1a202c; margin-bottom:6px; }
+  .sub { font-size:.83rem; color:#718096; line-height:1.6; margin-bottom:18px; }
+
+  .card {
+    background:#fff; border-radius:16px; box-shadow:0 4px 24px rgba(0,0,0,.08);
+    padding:20px 18px; margin-bottom:14px;
+  }
+
+  input[type=search] {
+    width:100%; padding:13px 15px; border:2px solid #e2e8f0; border-radius:11px;
+    font-size:1rem; outline:none; font-family:inherit; color:#2d3748;
+  }
+  input[type=search]:focus { border-color:#4f46e5; }
+
+  .status { font-size:.8rem; color:#a0aec0; margin-top:10px; line-height:1.6; }
+
+  .hits { margin-top:12px; }
+  .hit {
+    display:block; width:100%; text-align:left; background:#f7fafc;
+    border:1px solid #e2e8f0; border-radius:10px; padding:11px 13px;
+    margin-bottom:7px; cursor:pointer; font-family:inherit;
+  }
+  .hit:hover { border-color:#4f46e5; background:#f7f8ff; }
+  .hit .hc { font-size:.78rem; color:#4f46e5; font-weight:700; font-variant-numeric:tabular-nums; letter-spacing:.5px; }
+  .hit .hn { font-size:.9rem; color:#2d3748; margin-top:2px; line-height:1.45; }
+
+  .detail h2 {
+    font-size:1.05rem; color:#1a202c; line-height:1.45; margin-bottom:3px;
+  }
+  .detail .code {
+    font-size:.85rem; color:#4f46e5; font-weight:700;
+    font-variant-numeric:tabular-nums; letter-spacing:1px; margin-bottom:16px;
+  }
+
+  .sect { border-top:2px solid #edf2f7; padding-top:14px; margin-top:14px; }
+  .sect:first-of-type { border-top:none; padding-top:0; margin-top:0; }
+  .sect h3 { font-size:.92rem; color:#1a202c; margin-bottom:9px; }
+
+  .blk { border-radius:9px; padding:10px 12px; margin-bottom:8px; font-size:.83rem; line-height:1.65; white-space:pre-wrap; word-break:break-word; }
+  .b-how { background:#f7fafc; border:1px solid #e2e8f0; color:#4a5568; }
+  .b-ok  { background:#f0fff4; border:1px solid #c6f6d5; color:#22543d; }
+  .b-no  { background:#fff5f5; border:1px solid #fed7d7; color:#9b2c2c; }
+  .b-note{ background:#fffaf0; border:1px solid #fbd38d; color:#7b4b12; }
+  .blk .lbl { display:block; font-size:.7rem; font-weight:700; opacity:.75; margin-bottom:4px; letter-spacing:.03em; }
+
+  .ok-row { display:flex; gap:8px; align-items:flex-start; }
+  .ok-row .blk { flex:1; margin-bottom:0; }
+  .copy {
+    flex-shrink:0; border:1px solid #c6f6d5; background:#fff; color:#276749;
+    border-radius:9px; padding:9px 11px; font-size:.75rem; font-weight:700;
+    cursor:pointer; font-family:inherit; white-space:nowrap;
+  }
+  .copy:hover { background:#f0fff4; }
+  .copy.done { background:#276749; color:#fff; border-color:#276749; }
+
+  .empty { text-align:center; color:#a0aec0; padding:26px 0; font-size:.9rem; line-height:1.7; }
+
+  .foot { font-size:.76rem; color:#a0aec0; text-align:center; line-height:1.8; margin-top:20px; }
+  .foot a { color:#718096; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="back" href="./">← 도구 모음으로</a>
+  <h1>📝 수입신고서 작성 도우미</h1>
+  <p class="sub">
+    관세청 <b>「HSK별 품명·규격 수입신고 가이드」</b>(HSK 2,583개)를 검색합니다.
+    유니패스에 직접 신고할 때 <b>품명·거래품명·모델규격을 어떻게 적어야 하는지</b>
+    올바른 예시와 오류 예시로 보여줍니다.
+  </p>
+
+  <div class="card">
+    <input type="search" id="q" placeholder="HS코드 또는 품명 검색 (예: 6109, 티셔츠, 우산)" autocomplete="off">
+    <div class="status" id="status">가이드를 불러오는 중…</div>
+    <div class="hits" id="hits"></div>
+  </div>
+
+  <div class="card detail" id="detail" style="display:none"></div>
+
+  <p class="foot">
+    출처: 관세청 <a href="https://www.customs.go.kr/incheon/cm/cntnts/cntntsView.do?mi=3582&amp;cntntsId=817" target="_blank" rel="noopener">수입통관 안내</a> ·
+    HSK별 품명 규격 수입신고 가이드<br>
+    최종 HS코드는 <b>수입지 세관이 인정하는 것</b>이 기준입니다. 확신이 없으면 품목분류 사전심사를 받으세요.<br>
+    막힐 때: 관세청 <b>125</b> · 전자통관 기술지원센터 <b>1544-1285</b><br>
+    <a href="guide.html">📄 실무 가이드</a> · <a href="sourcing.html">🇯🇵 사입 판정기</a>
+  </p>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let INDEX = [];
+const chapterCache = {};
+
+// ---------------------------------------------------------------- 색인 로드
+fetch('data/hsk-index.json')
+  .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+  .then(d => {
+    INDEX = d;
+    $('status').innerHTML = `HSK <b>${d.length.toLocaleString()}개</b> 준비됨. 코드나 품명으로 검색하세요.`;
+  })
+  .catch(e => {
+    $('status').innerHTML = `<span style="color:#c53030">가이드를 불러오지 못했습니다 (${e.message}).<br>
+      file:// 로 열면 차단됩니다 — 웹 주소로 접속하거나 로컬 서버를 쓰세요.</span>`;
+  });
+
+// ---------------------------------------------------------------- 검색
+function search() {
+  const raw = $('q').value.trim();
+  const hits = $('hits');
+  $('detail').style.display = 'none';
+
+  if (!raw) { hits.innerHTML = ''; return; }
+
+  const digits = raw.replace(/\D/g, '');
+  const kw = raw.toLowerCase();
+
+  let found = INDEX.filter(([c, n]) =>
+    (digits && c.startsWith(digits)) || (!digits && n.toLowerCase().includes(kw))
+  );
+  // 숫자로 시작했지만 결과가 없으면 품명으로도 시도
+  if (!found.length) found = INDEX.filter(([, n]) => n.toLowerCase().includes(kw));
+
+  if (!found.length) {
+    hits.innerHTML = `<div class="empty">일치하는 항목이 없습니다.<br>
+      4자리 호(예: 6109)로 넓게 찾거나, 다른 품명을 써보세요.</div>`;
+    return;
+  }
+
+  const shown = found.slice(0, 60);
+  hits.innerHTML = shown.map(([c, n]) =>
+    `<button class="hit" data-c="${c}">
+       <span class="hc">${c.replace(/(\d{4})(\d{2})(\d{4})/, '$1.$2.$3')}</span>
+       <span class="hn">${esc(n)}</span>
+     </button>`).join('') +
+    (found.length > shown.length
+      ? `<div class="empty" style="padding:12px 0">${found.length}건 중 60건만 표시 — 검색어를 좁혀보세요.</div>`
+      : '');
+
+  hits.querySelectorAll('.hit').forEach(b =>
+    b.addEventListener('click', () => showDetail(b.dataset.c)));
+}
+
+function esc(t) {
+  return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// ---------------------------------------------------------------- 상세
+async function showDetail(code) {
+  const ch = code.slice(0, 2);
+  const box = $('detail');
+  box.style.display = 'block';
+  box.innerHTML = '<div class="empty">불러오는 중…</div>';
+  box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  try {
+    if (!chapterCache[ch]) {
+      const r = await fetch(`data/hsk/${ch}.json`);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      chapterCache[ch] = await r.json();
+    }
+  } catch (e) {
+    box.innerHTML = `<div class="empty" style="color:#c53030">상세를 불러오지 못했습니다 (${e.message}).</div>`;
+    return;
+  }
+
+  const d = chapterCache[ch].find(x => x.c === code);
+  if (!d) { box.innerHTML = '<div class="empty">데이터를 찾지 못했습니다.</div>'; return; }
+
+  const SECTIONS = [
+    ['품명',        'pg', 'pe', 'px'],
+    ['거래품명',    'tg', 'te', 'tx'],
+    ['모델·규격',   'mg', 'me', 'mx'],
+    ['성분',        'sg', 'se', 'sx'],
+    ['수입요건확인','rg', 're', 'rx'],
+  ];
+
+  let html = `<h2>${esc(d.n)}</h2>
+    <div class="code">${d.c.replace(/(\d{4})(\d{2})(\d{4})/, '$1.$2.$3')}</div>`;
+
+  for (const [title, g, e, x] of SECTIONS) {
+    if (!d[g] && !d[e] && !d[x]) continue;
+    html += `<div class="sect"><h3>${title}</h3>`;
+    if (d[g]) html += `<div class="blk b-how"><span class="lbl">작성요령</span>${esc(d[g])}</div>`;
+    if (d[e]) html += `<div class="ok-row">
+        <div class="blk b-ok"><span class="lbl">✅ 올바른 예시</span>${esc(d[e])}</div>
+        <button class="copy" data-copy="${esc(d[e])}">복사</button>
+      </div><div style="height:8px"></div>`;
+    if (d[x]) html += `<div class="blk b-no"><span class="lbl">❌ 오류 예시</span>${esc(d[x])}</div>`;
+    html += `</div>`;
+  }
+
+  if (d.note) html += `<div class="sect"><h3>신고 유의사항</h3>
+    <div class="blk b-note">${esc(d.note)}</div></div>`;
+
+  box.innerHTML = html;
+
+  box.querySelectorAll('.copy').forEach(b => b.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(b.dataset.copy);
+      b.textContent = '복사됨'; b.classList.add('done');
+      setTimeout(() => { b.textContent = '복사'; b.classList.remove('done'); }, 1400);
+    } catch { b.textContent = '실패'; setTimeout(() => b.textContent = '복사', 1400); }
+  }));
+}
+
+$('q').addEventListener('input', search);
+</script>
+</body>
+</html>

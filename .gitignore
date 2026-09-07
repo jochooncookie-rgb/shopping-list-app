@@ -1,0 +1,5 @@
+.env
+*.env
+!*.env.example
+coupang-research.csv
+naver-research.csv

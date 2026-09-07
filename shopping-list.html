@@ -47,6 +47,9 @@
 
     .input-row input {
       flex: 1;
+      /* flex 아이템 기본값 min-width:auto 는 내용 폭 아래로 줄어들지 못하게 막는다.
+         이게 없으면 좁은 화면(320px)에서 '추가' 버튼이 화면 밖으로 밀린다. */
+      min-width: 0;
       padding: 12px 16px;
       border: 2px solid #e2e8f0;
       border-radius: 10px;
